@@ -12,8 +12,8 @@ enum Method {
 }
 
 interface Options {
-  body?: Json;
   headers?: Json;
+  payload?: Json;
   queryParams?: Json;
 }
 
@@ -41,32 +41,32 @@ interface Configuration {
 
 interface Refactor {
   url: string;
-  body?: Json;
   headers?: Json;
+  payload?: Json;
 }
 
 interface RefactorResult {
-  body: Json;
   headers: Json;
+  payload: Json;
 }
 
 class Interceptor {
   private readonly headersJson: Json = {};
 
-  private readonly bodyJson: Json = {};
+  private readonly payloadJson: Json = {};
 
   public header<T>(key: string, value: T): void {
     this.headersJson[key] = String(value);
   }
 
-  public body<T>(key: string, value: T): void {
-    this.bodyJson[key] = value;
+  public payload<T>(key: string, value: T): void {
+    this.payloadJson[key] = value;
   }
 
-  public build(globals: Json, headers?: Json, body?: Json): RefactorResult {
+  public build(globals: Json, headers?: Json, payload?: Json): RefactorResult {
     return {
       headers: { ...globals, ...this.headersJson, ...headers },
-      body: { ...this.bodyJson, ...body }
+      payload: { ...this.payloadJson, ...payload }
     };
   }
 }
@@ -95,7 +95,7 @@ async function refactorHeaders(url: string): Promise<Json> {
 }
 
 async function refactorRequest(options: Refactor): Promise<RefactorResult> {
-  const { url, body, headers } = options;
+  const { url, payload, headers } = options;
   const { interceptors } = configuration;
 
   const interceptor = new Interceptor();
@@ -104,7 +104,7 @@ async function refactorRequest(options: Refactor): Promise<RefactorResult> {
     interceptors.map((resolver) => fromPromise(resolver({ url, interceptor })))
   );
 
-  return interceptor.build(refactorHeaders(url), headers, body);
+  return interceptor.build(refactorHeaders(url), headers, payload);
 }
 
 function createUrl(baseUrl: string, queryParams?: Json): string {
@@ -130,13 +130,13 @@ function request<T = unknown>(
 ): Promise<T> {
   return refactorRequest({
     url,
-    body: options?.body,
-    headers: options?.headers
-  }).then(({ body, headers }) =>
+    headers: options?.headers,
+    payload: options?.payload
+  }).then(({ headers, payload }) =>
     fetch(createUrl(url, options?.queryParams), {
       headers,
       method,
-      body: JSON.stringify(body)
+      body: JSON.stringify(payload)
     })
       .then(async (response) => {
         const { status, statusText } = response;
