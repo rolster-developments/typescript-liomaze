@@ -14,10 +14,6 @@ You must install the `@rolster/types` to define package data types, which are co
 
 ```json
 {
-  "compilerOptions": {
-    "emitDecoratorMetadata": true,
-    "experimentalDecorators": true
-  },
   "files": ["node_modules/@rolster/types/index.d.ts"]
 }
 ```
