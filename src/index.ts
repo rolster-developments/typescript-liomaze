@@ -12,7 +12,6 @@ enum Method {
 }
 
 interface Options {
-  url: string;
   body?: Json;
   headers?: Json;
   queryParams?: Json;
@@ -124,11 +123,17 @@ function createUrl(baseUrl: string, queryParams?: Json): string {
   return `${baseUrl}?${paramsUrl}`;
 }
 
-function request<T = unknown>(method: Method, props: Options): Promise<T> {
-  const { url, body, headers, queryParams } = props;
-
-  return refactorRequest({ url, body, headers }).then(({ body, headers }) =>
-    fetch(createUrl(url, queryParams), {
+function request<T = unknown>(
+  method: Method,
+  url: string,
+  options?: Options
+): Promise<T> {
+  return refactorRequest({
+    url,
+    body: options?.body,
+    headers: options?.headers
+  }).then(({ body, headers }) =>
+    fetch(createUrl(url, options?.queryParams), {
       headers,
       method,
       body: JSON.stringify(body)
@@ -175,26 +180,32 @@ export function interceptor(resolver: ResolverInterceptor): void {
   configuration.interceptors.push(resolver);
 }
 
-export function get<T = unknown>(options: Options): Promise<T> {
-  return request(Method.Get, options);
+export function get<T = unknown>(url: string, options?: Options): Promise<T> {
+  return request(Method.Get, url, options);
 }
 
-export function post<T = unknown>(options: Options): Promise<T> {
-  return request(Method.Post, options);
+export function post<T = unknown>(url: string, options?: Options): Promise<T> {
+  return request(Method.Post, url, options);
 }
 
-export function put<T = unknown>(options: Options): Promise<T> {
-  return request(Method.Put, options);
+export function put<T = unknown>(url: string, options?: Options): Promise<T> {
+  return request(Method.Put, url, options);
 }
 
-export function destroy<T = unknown>(options: Options): Promise<T> {
-  return request(Method.Delete, options);
+export function destroy<T = unknown>(
+  url: string,
+  options?: Options
+): Promise<T> {
+  return request(Method.Delete, url, options);
 }
 
-export function patch<T = unknown>(options: Options): Promise<T> {
-  return request(Method.Patch, options);
+export function patch<T = unknown>(url: string, options?: Options): Promise<T> {
+  return request(Method.Patch, url, options);
 }
 
-export function options<T = unknown>(options: Options): Promise<T> {
-  return request(Method.Options, options);
+export function options<T = unknown>(
+  url: string,
+  options?: Options
+): Promise<T> {
+  return request(Method.Options, url, options);
 }
