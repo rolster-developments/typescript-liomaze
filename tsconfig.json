@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "allowUnreachableCode": false,
+    "declaration": true,
+    "declarationDir": "dist/esm",
+    "emitDecoratorMetadata": true,
+    "esModuleInterop": true,
+    "experimentalDecorators": true,
+    "forceConsistentCasingInFileNames": true,
+    "importHelpers": true,
+    "lib": ["dom", "es2020"],
+    "module": "esnext",
+    "moduleResolution": "node",
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "outDir": "dist/esm",
+    "pretty": true,
+    "rootDir": "./src",
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "strict": true,
+    "target": "es2020",
+    "typeRoots": ["node_modules/@types/**/*.d.ts", "src/**/*.d.ts"]
+  },
+  "files": ["node_modules/@rolster/types/index.d.ts"],
+  "include": ["src"],
+  "exclude": ["**/*.spec.ts", "**/*.test.ts"],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "esnext"
+    },
+    "files": true
+  }
+}
