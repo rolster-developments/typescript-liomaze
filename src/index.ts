@@ -11,7 +11,7 @@ enum Method {
   Options = 'OPTIONS'
 }
 
-interface RequestProps {
+interface Options {
   url: string;
   body?: Json;
   headers?: Json;
@@ -21,45 +21,91 @@ interface RequestProps {
 type Result = void | Promise<void>;
 type Header = (key: string, value: any) => Result;
 
-interface Headers {
+interface ResolveHeader {
   url: string;
   header: Header;
 }
 
-type ResolveHeaders = (headers: Headers) => Result;
+interface ResolveInterceptor {
+  url: string;
+  interceptor: Interceptor;
+}
+
+type ResolverHeader = (resolve: ResolveHeader) => Result;
+type ResolverInterceptor = (resolve: ResolveInterceptor) => Result;
 
 interface Configuration {
-  interceptors: ResolveHeaders[];
+  interceptors: ResolverInterceptor[];
   catchError?: (error: Error) => Error;
-  headers?: ResolveHeaders;
+  headers?: ResolverHeader;
+}
+
+interface Refactor {
+  url: string;
+  body?: Json;
+  headers?: Json;
+}
+
+interface RefactorResult {
+  body: Json;
+  headers: Json;
+}
+
+class Interceptor {
+  private readonly headersJson: Json = {};
+
+  private readonly bodyJson: Json = {};
+
+  public header<T>(key: string, value: T): void {
+    this.headersJson[key] = String(value);
+  }
+
+  public body<T>(key: string, value: T): void {
+    this.bodyJson[key] = value;
+  }
+
+  public build(globals: Json, headers?: Json, body?: Json): RefactorResult {
+    return {
+      headers: { ...globals, ...this.headersJson, ...headers },
+      body: { ...this.bodyJson, ...body }
+    };
+  }
 }
 
 const configuration: Configuration = {
   interceptors: []
 };
 
-async function createHeaders(url: string, headers?: Json): Promise<Json> {
-  const { interceptors, headers: globalHeaders } = configuration;
+async function refactorHeaders(url: string): Promise<Json> {
+  const { headers } = configuration;
 
-  const request: Json = {};
+  const resultHeaders: Json = {};
 
-  const header = (key: string, value: any) => {
-    request[key] = value;
-  };
-
-  if (globalHeaders) {
-    await fromPromise(globalHeaders({ url, header }));
-  }
-
-  if (interceptors) {
-    await Promise.all(
-      interceptors.map((interceptor) =>
-        fromPromise(interceptor({ url, header }))
-      )
+  if (headers) {
+    await fromPromise(
+      headers({
+        url,
+        header: (key: string, value: any) => {
+          resultHeaders[key] = value;
+        }
+      })
     );
   }
 
-  return { ...request, ...headers };
+  return resultHeaders;
+}
+
+async function refactorRequest(options: Refactor): Promise<RefactorResult> {
+  const { url, body, headers } = options;
+  const { interceptors } = configuration;
+
+  const interceptor = new Interceptor();
+
+  await Promise.all(
+    interceptors.map((resolver) => fromPromise(resolver({ url, interceptor })))
+  );
+
+  return interceptor.build(refactorHeaders(url), headers, body);
 }
 
 function createUrl(baseUrl: string, queryParams?: Json): string {
@@ -78,10 +124,10 @@ function createUrl(baseUrl: string, queryParams?: Json): string {
   return `${baseUrl}?${paramsUrl}`;
 }
 
-function request<T = unknown>(method: Method, props: RequestProps): Promise<T> {
+function request<T = unknown>(method: Method, props: Options): Promise<T> {
   const { url, body, headers, queryParams } = props;
 
-  return createHeaders(url, headers).then((headers) =>
+  return refactorRequest({ url, body, headers }).then(({ body, headers }) =>
     fetch(createUrl(url, queryParams), {
       headers,
       method,
@@ -125,30 +171,30 @@ export function config(config: Partial<Configuration>): void {
   }
 }
 
-export function interceptor(resolver: ResolveHeaders): void {
+export function interceptor(resolver: ResolverInterceptor): void {
   configuration.interceptors.push(resolver);
 }
 
-export function get<T = unknown>(props: RequestProps): Promise<T> {
-  return request(Method.Get, props);
+export function get<T = unknown>(options: Options): Promise<T> {
+  return request(Method.Get, options);
 }
 
-export function post<T = unknown>(props: RequestProps): Promise<T> {
-  return request(Method.Post, props);
+export function post<T = unknown>(options: Options): Promise<T> {
+  return request(Method.Post, options);
 }
 
-export function put<T = unknown>(props: RequestProps): Promise<T> {
-  return request(Method.Put, props);
+export function put<T = unknown>(options: Options): Promise<T> {
+  return request(Method.Put, options);
 }
 
-export function destroy<T = unknown>(props: RequestProps): Promise<T> {
-  return request(Method.Delete, props);
+export function destroy<T = unknown>(options: Options): Promise<T> {
+  return request(Method.Delete, options);
 }
 
-export function patch<T = unknown>(props: RequestProps): Promise<T> {
-  return request(Method.Patch, props);
+export function patch<T = unknown>(options: Options): Promise<T> {
+  return request(Method.Patch, options);
 }
 
-export function options<T = unknown>(props: RequestProps): Promise<T> {
-  return request(Method.Options, props);
+export function options<T = unknown>(options: Options): Promise<T> {
+  return request(Method.Options, options);
 }
