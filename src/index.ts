@@ -47,26 +47,33 @@ interface Refactor {
 
 interface RefactorResult {
   headers: Json;
-  payload: Json;
+  payload?: Json;
 }
 
 class Interceptor {
   private readonly headersJson: Json = {};
 
-  private readonly payloadJson: Json = {};
+  private payloadJson?: Json;
 
   public header<T>(key: string, value: T): void {
     this.headersJson[key] = String(value);
   }
 
   public payload<T>(key: string, value: T): void {
+    if (!this.payloadJson) {
+      this.payloadJson = {}; // Init
+    }
+
     this.payloadJson[key] = value;
   }
 
   public build(globals: Json, headers?: Json, payload?: Json): RefactorResult {
     return {
       headers: { ...globals, ...this.headersJson, ...headers },
-      payload: { ...this.payloadJson, ...payload }
+      payload: (this.payloadJson || payload) && {
+        ...this.payloadJson,
+        ...payload
+      }
     };
   }
 }
@@ -98,13 +105,15 @@ async function refactorRequest(options: Refactor): Promise<RefactorResult> {
   const { url, payload, headers } = options;
   const { interceptors } = configuration;
 
+  const resultHeaders = await refactorHeaders(url);
+
   const interceptor = new Interceptor();
 
   await Promise.all(
     interceptors.map((resolver) => fromPromise(resolver({ url, interceptor })))
   );
 
-  return interceptor.build(refactorHeaders(url), headers, payload);
+  return interceptor.build(resultHeaders, headers, payload);
 }
 
 function createUrl(baseUrl: string, queryParams?: Json): string {
@@ -126,32 +135,31 @@ function createUrl(baseUrl: string, queryParams?: Json): string {
 function request<T = unknown>(
   method: Method,
   url: string,
-  options?: Options
+  options: Options
 ): Promise<T> {
-  return refactorRequest({
-    url,
-    headers: options?.headers,
-    payload: options?.payload
-  }).then(({ headers, payload }) =>
-    fetch(createUrl(url, options?.queryParams), {
-      headers,
-      method,
-      body: JSON.stringify(payload)
-    })
-      .then(async (response) => {
-        const { status, statusText } = response;
+  const { headers, payload, queryParams } = options;
 
-        if (status < 200 || status >= 300) {
-          throw new HttpError(status, statusText, await response.json());
-        }
-
-        return response.json() as T;
+  return refactorRequest({ url, headers, payload }).then(
+    ({ headers, payload }) =>
+      fetch(createUrl(url, queryParams), {
+        headers,
+        method,
+        body: payload && JSON.stringify(payload)
       })
-      .catch((error) => {
-        const { catchError } = configuration;
+        .then(async (response) => {
+          const { status, statusText } = response;
 
-        throw catchError ? catchError(error) : error;
-      })
+          if (status < 200 || status >= 300) {
+            throw new HttpError(status, statusText, await response.json());
+          }
+
+          return response.json() as T;
+        })
+        .catch((error) => {
+          const { catchError } = configuration;
+
+          throw catchError ? catchError(error) : error;
+        })
   );
 }
 
@@ -180,32 +188,46 @@ export function interceptor(resolver: ResolverInterceptor): void {
   configuration.interceptors.push(resolver);
 }
 
-export function get<T = unknown>(url: string, options?: Options): Promise<T> {
+type GetOptions = Omit<Options, 'payload'>;
+
+export function get<T = unknown>(
+  url: string,
+  options: GetOptions = {}
+): Promise<T> {
   return request(Method.Get, url, options);
 }
 
-export function post<T = unknown>(url: string, options?: Options): Promise<T> {
+export function post<T = unknown>(
+  url: string,
+  options: Options = {}
+): Promise<T> {
   return request(Method.Post, url, options);
 }
 
-export function put<T = unknown>(url: string, options?: Options): Promise<T> {
+export function put<T = unknown>(
+  url: string,
+  options: Options = {}
+): Promise<T> {
   return request(Method.Put, url, options);
 }
 
 export function destroy<T = unknown>(
   url: string,
-  options?: Options
+  options: Options = {}
 ): Promise<T> {
   return request(Method.Delete, url, options);
 }
 
-export function patch<T = unknown>(url: string, options?: Options): Promise<T> {
+export function patch<T = unknown>(
+  url: string,
+  options: Options = {}
+): Promise<T> {
   return request(Method.Patch, url, options);
 }
 
 export function options<T = unknown>(
   url: string,
-  options?: Options
+  options: Options = {}
 ): Promise<T> {
   return request(Method.Options, url, options);
 }
