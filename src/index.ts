@@ -2,7 +2,7 @@ import { fromPromise } from '@rolster/helpers-advanced';
 
 type Json = Record<string, any>;
 
-enum Method {
+export enum Method {
   Post = 'POST',
   Get = 'GET',
   Put = 'PUT',
@@ -21,11 +21,13 @@ type Result = void | Promise<void>;
 type Header = (key: string, value: any) => Result;
 
 interface ResolveHeader {
+  method: Method;
   url: string;
   header: Header;
 }
 
 interface ResolveInterceptor {
+  method: Method;
   url: string;
   interceptor: Interceptor;
 }
@@ -40,6 +42,7 @@ interface Configuration {
 }
 
 interface Refactor {
+  method: Method;
   url: string;
   headers?: Json;
   payload?: Json;
@@ -82,7 +85,7 @@ const configuration: Configuration = {
   interceptors: []
 };
 
-async function refactorHeaders(url: string): Promise<Json> {
+async function refactorHeaders(method: Method, url: string): Promise<Json> {
   const { headers } = configuration;
 
   const resultHeaders: Json = {};
@@ -90,6 +93,7 @@ async function refactorHeaders(url: string): Promise<Json> {
   if (headers) {
     await fromPromise(
       headers({
+        method,
         url,
         header: (key: string, value: any) => {
           resultHeaders[key] = value;
@@ -102,15 +106,17 @@ async function refactorHeaders(url: string): Promise<Json> {
 }
 
 async function refactorRequest(options: Refactor): Promise<RefactorResult> {
-  const { url, payload, headers } = options;
+  const { method, url, payload, headers } = options;
   const { interceptors } = configuration;
 
-  const resultHeaders = await refactorHeaders(url);
+  const resultHeaders = await refactorHeaders(method, url);
 
   const interceptor = new Interceptor();
 
   await Promise.all(
-    interceptors.map((resolver) => fromPromise(resolver({ url, interceptor })))
+    interceptors.map((resolver) =>
+      fromPromise(resolver({ method, url, interceptor }))
+    )
   );
 
   return interceptor.build(resultHeaders, headers, payload);
@@ -139,7 +145,7 @@ function request<T = unknown>(
 ): Promise<T> {
   const { headers, payload, queryParams } = options;
 
-  return refactorRequest({ url, headers, payload }).then(
+  return refactorRequest({ method, url, headers, payload }).then(
     ({ headers, payload }) =>
       fetch(createUrl(url, queryParams), {
         headers,
@@ -153,7 +159,22 @@ function request<T = unknown>(
             throw new HttpError(status, statusText, await response.json());
           }
 
-          return response.json() as T;
+          const contentTypeHeader = response.headers
+            .get('Content-Type')
+            ?.split(';');
+
+          const contentType = contentTypeHeader
+            ? contentTypeHeader[0]
+            : 'text/plain';
+
+          switch (contentType) {
+            case 'application/octet-stream':
+              return response.blob();
+            case 'application/json':
+              return response.json().catch(() => ({}));
+            default:
+              return response.text();
+          }
         })
         .catch((error) => {
           const { catchError } = configuration;
