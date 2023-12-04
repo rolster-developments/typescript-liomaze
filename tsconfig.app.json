@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "files": ["node_modules/@rolster/types/index.d.ts"],
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.spec.ts"]
+}

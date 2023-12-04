@@ -1,7 +1,5 @@
 import { fromPromise } from '@rolster/helpers-advanced';
 
-type Json = Record<string, any>;
-
 export enum Method {
   Post = 'POST',
   Get = 'GET',
@@ -12,9 +10,9 @@ export enum Method {
 }
 
 interface Options {
-  headers?: Json;
-  payload?: Json;
-  queryParams?: Json;
+  headers?: LiteralObject<any>;
+  payload?: LiteralObject;
+  queryParams?: LiteralObject;
 }
 
 type Result = void | Promise<void>;
@@ -44,19 +42,19 @@ interface Configuration {
 interface Refactor {
   method: Method;
   url: string;
-  headers?: Json;
-  payload?: Json;
+  headers?: LiteralObject;
+  payload?: LiteralObject;
 }
 
 interface RefactorResult {
-  headers: Json;
-  payload?: Json;
+  headers: LiteralObject<any>;
+  payload?: LiteralObject;
 }
 
 class Interceptor {
-  private readonly headersJson: Json = {};
+  private readonly headersJson: LiteralObject = {};
 
-  private payloadJson?: Json;
+  private payloadJson?: LiteralObject;
 
   public header<T>(key: string, value: T): void {
     this.headersJson[key] = String(value);
@@ -64,13 +62,17 @@ class Interceptor {
 
   public payload<T>(key: string, value: T): void {
     if (!this.payloadJson) {
-      this.payloadJson = {}; // Init
+      this.payloadJson = {};
     }
 
     this.payloadJson[key] = value;
   }
 
-  public build(globals: Json, headers?: Json, payload?: Json): RefactorResult {
+  public build(
+    globals: LiteralObject,
+    headers?: LiteralObject<any>,
+    payload?: LiteralObject
+  ): RefactorResult {
     return {
       headers: { ...globals, ...this.headersJson, ...headers },
       payload: (this.payloadJson || payload) && {
@@ -85,10 +87,13 @@ const configuration: Configuration = {
   interceptors: []
 };
 
-async function refactorHeaders(method: Method, url: string): Promise<Json> {
+async function refactorHeaders(
+  method: Method,
+  url: string
+): Promise<LiteralObject> {
   const { headers } = configuration;
 
-  const resultHeaders: Json = {};
+  const resultHeaders: LiteralObject = {};
 
   if (headers) {
     await fromPromise(
@@ -122,7 +127,7 @@ async function refactorRequest(options: Refactor): Promise<RefactorResult> {
   return interceptor.build(resultHeaders, headers, payload);
 }
 
-function createUrl(baseUrl: string, queryParams?: Json): string {
+function createUrl(baseUrl: string, queryParams?: LiteralObject): string {
   if (!queryParams) {
     return baseUrl;
   }
