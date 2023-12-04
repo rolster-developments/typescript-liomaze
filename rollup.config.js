@@ -13,18 +13,18 @@ const plugins = [
   })
 ];
 
-const rollupTs = (name) => {
+const rollupTs = (file) => {
   return {
-    input: `dist/esm/${name}.js`,
+    input: `dist/esm/${file}.js`,
     output: [
       {
-        file: `dist/cjs/${name}.js`,
+        file: `dist/cjs/${file}.js`,
         format: 'cjs',
         sourcemap: true,
         inlineDynamicImports: true
       },
       {
-        file: `dist/es/${name}.js`,
+        file: `dist/es/${file}.js`,
         format: 'es',
         sourcemap: true,
         inlineDynamicImports: true
