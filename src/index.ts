@@ -1,4 +1,4 @@
-import { fromPromise } from '@rolster/helpers-advanced';
+import { fromPromise, isDefined } from '@rolster/helpers-advanced';
 
 export enum Method {
   Post = 'POST',
@@ -127,6 +127,20 @@ async function refactorRequest(options: Refactor): Promise<RefactorResult> {
   return interceptor.build(resultHeaders, headers, payload);
 }
 
+function refactorPayload(payload: LiteralObject): LiteralObject {
+  return Object.entries(payload).reduce(
+    (result: LiteralObject, [key, value]) => {
+      if (isDefined(value)) {
+        result[key] =
+          typeof value === 'object' ? refactorPayload(value) : value;
+      }
+
+      return result;
+    },
+    {}
+  );
+}
+
 function createUrl(baseUrl: string, queryParams?: LiteralObject): string {
   if (!queryParams) {
     return baseUrl;
@@ -155,7 +169,7 @@ function request<T = unknown>(
       fetch(createUrl(url, queryParams), {
         headers,
         method,
-        body: payload && JSON.stringify(payload)
+        body: payload && JSON.stringify(refactorPayload(payload))
       })
         .then(async (response) => {
           const { status, statusText } = response;
