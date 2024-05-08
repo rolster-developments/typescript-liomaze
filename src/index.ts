@@ -1,4 +1,4 @@
-import { fromPromise, isDefined } from '@rolster/helpers-advanced';
+import { fromPromise, itIsDefined } from '@rolster/helpers-advanced';
 
 export enum Method {
   Post = 'POST',
@@ -130,7 +130,7 @@ async function refactorRequest(options: Refactor): Promise<RefactorResult> {
 function refactorPayload(payload: LiteralObject): LiteralObject {
   return Object.entries(payload).reduce(
     (result: LiteralObject, [key, value]) => {
-      if (isDefined(value)) {
+      if (itIsDefined(value)) {
         result[key] =
           typeof value === 'object' ? refactorPayload(value) : value;
       }
