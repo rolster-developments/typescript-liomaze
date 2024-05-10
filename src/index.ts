@@ -10,7 +10,7 @@ export enum Method {
 }
 
 interface Options {
-  headers?: LiteralObject<any>;
+  headers?: LiteralObject;
   payload?: LiteralObject;
   queryParams?: LiteralObject;
 }
@@ -91,23 +91,23 @@ async function refactorHeaders(
   method: Method,
   url: string
 ): Promise<LiteralObject> {
-  const { headers } = configuration;
+  const { headers: configHeaders } = configuration;
 
-  const resultHeaders: LiteralObject = {};
+  const headers: LiteralObject = {};
 
-  if (headers) {
+  if (configHeaders) {
     await fromPromise(
-      headers({
+      configHeaders({
         method,
         url,
         header: (key: string, value: any) => {
-          resultHeaders[key] = value;
+          headers[key] = value;
         }
       })
     );
   }
 
-  return resultHeaders;
+  return headers;
 }
 
 async function refactorRequest(options: Refactor): Promise<RefactorResult> {
@@ -127,12 +127,11 @@ async function refactorRequest(options: Refactor): Promise<RefactorResult> {
   return interceptor.build(resultHeaders, headers, payload);
 }
 
-function refactorPayload(payload: LiteralObject): LiteralObject {
+function normalizeJson(payload: LiteralObject): LiteralObject {
   return Object.entries(payload).reduce(
     (result: LiteralObject, [key, value]) => {
       if (itIsDefined(value)) {
-        result[key] =
-          typeof value === 'object' ? refactorPayload(value) : value;
+        result[key] = typeof value === 'object' ? normalizeJson(value) : value;
       }
 
       return result;
@@ -166,10 +165,10 @@ function request<T = unknown>(
 
   return refactorRequest({ method, url, headers, payload }).then(
     ({ headers, payload }) =>
-      fetch(createUrl(url, queryParams), {
+      fetch(createUrl(url, queryParams && normalizeJson(queryParams)), {
         headers,
         method,
-        body: payload && JSON.stringify(refactorPayload(payload))
+        body: payload && JSON.stringify(normalizeJson(payload))
       })
         .then(async (response) => {
           const { status, statusText } = response;
