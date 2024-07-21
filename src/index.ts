@@ -1,4 +1,4 @@
-import { fromPromise, itIsDefined } from '@rolster/helpers-advanced';
+import { fromPromise, itIsDefined } from '@rolster/commons';
 
 export enum Method {
   Post = 'POST',
