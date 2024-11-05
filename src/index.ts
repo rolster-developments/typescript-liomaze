@@ -9,7 +9,7 @@ export enum Method {
   Options = 'OPTIONS'
 }
 
-interface Options {
+interface HttpOptions {
   headers?: LiteralObject;
   payload?: LiteralObject;
   queryParams?: LiteralObject;
@@ -39,7 +39,7 @@ interface Configuration {
   headers?: ResolverHeader;
 }
 
-interface Refactor {
+interface RefactorOptions {
   method: Method;
   url: string;
   headers?: LiteralObject;
@@ -52,20 +52,20 @@ interface RefactorResult {
 }
 
 class Interceptor {
-  private readonly headersJson: LiteralObject = {};
+  private readonly headers: LiteralObject = {};
 
-  private payloadJson?: LiteralObject;
+  private body?: LiteralObject;
 
   public header<T>(key: string, value: T): void {
-    this.headersJson[key] = String(value);
+    this.headers[key] = String(value);
   }
 
   public payload<T>(key: string, value: T): void {
-    if (!this.payloadJson) {
-      this.payloadJson = {};
+    if (!this.body) {
+      this.body = {};
     }
 
-    this.payloadJson[key] = value;
+    this.body[key] = value;
   }
 
   public build(
@@ -74,9 +74,9 @@ class Interceptor {
     payload?: LiteralObject
   ): RefactorResult {
     return {
-      headers: { ...globals, ...this.headersJson, ...headers },
-      payload: (this.payloadJson || payload) && {
-        ...this.payloadJson,
+      headers: { ...globals, ...this.headers, ...headers },
+      payload: (this.body || payload) && {
+        ...this.body,
         ...payload
       }
     };
@@ -110,7 +110,9 @@ async function refactorHeaders(
   return headers;
 }
 
-async function refactorRequest(options: Refactor): Promise<RefactorResult> {
+async function refactorRequest(
+  options: RefactorOptions
+): Promise<RefactorResult> {
   const { method, url, payload, headers } = options;
   const { interceptors } = configuration;
 
@@ -156,10 +158,10 @@ function createUrl(baseUrl: string, queryParams?: LiteralObject): string {
   return `${baseUrl}?${paramsUrl}`;
 }
 
-function request<T = unknown>(
+function request<T = any>(
   method: Method,
   url: string,
-  options: Options
+  options: HttpOptions
 ): Promise<T> {
   const { headers, payload, queryParams } = options;
 
@@ -227,46 +229,46 @@ export function interceptor(resolver: ResolverInterceptor): void {
   configuration.interceptors.push(resolver);
 }
 
-type GetOptions = Omit<Options, 'payload'>;
+type GetOptions = Omit<HttpOptions, 'payload'>;
 
-export function get<T = unknown>(
+export function get<T = any>(
   url: string,
   options: GetOptions = {}
 ): Promise<T> {
   return request(Method.Get, url, options);
 }
 
-export function post<T = unknown>(
+export function post<T = any>(
   url: string,
-  options: Options = {}
+  options: HttpOptions = {}
 ): Promise<T> {
   return request(Method.Post, url, options);
 }
 
-export function put<T = unknown>(
+export function put<T = any>(
   url: string,
-  options: Options = {}
+  options: HttpOptions = {}
 ): Promise<T> {
   return request(Method.Put, url, options);
 }
 
-export function destroy<T = unknown>(
+export function destroy<T = any>(
   url: string,
-  options: Options = {}
+  options: HttpOptions = {}
 ): Promise<T> {
   return request(Method.Delete, url, options);
 }
 
-export function patch<T = unknown>(
+export function patch<T = any>(
   url: string,
-  options: Options = {}
+  options: HttpOptions = {}
 ): Promise<T> {
   return request(Method.Patch, url, options);
 }
 
-export function options<T = unknown>(
+export function options<T = any>(
   url: string,
-  options: Options = {}
+  options: HttpOptions = {}
 ): Promise<T> {
   return request(Method.Options, url, options);
 }
