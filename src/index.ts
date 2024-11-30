@@ -1,4 +1,5 @@
 import { fromPromise, itIsDefined } from '@rolster/commons';
+import axios from 'axios';
 
 export enum Method {
   Post = 'POST',
@@ -133,7 +134,12 @@ function normalizeJson(payload: LiteralObject): LiteralObject {
   return Object.entries(payload).reduce(
     (result: LiteralObject, [key, value]) => {
       if (itIsDefined(value)) {
-        result[key] = typeof value === 'object' ? normalizeJson(value) : value;
+        result[key] =
+          typeof value === 'object'
+            ? Array.isArray(value)
+              ? value.map((value) => normalizeJson(value))
+              : normalizeJson(value)
+            : value;
       }
 
       return result;
@@ -166,41 +172,30 @@ function request<T = any>(
   const { headers, payload, queryParams } = options;
 
   return refactorRequest({ method, url, headers, payload }).then(
-    ({ headers, payload }) =>
-      fetch(createUrl(url, queryParams && normalizeJson(queryParams)), {
-        headers,
-        method,
-        body: payload && JSON.stringify(normalizeJson(payload))
-      })
-        .then(async (response) => {
-          const { status, statusText } = response;
+    ({ headers, payload }) => {
+      return axios<T>(
+        createUrl(url, queryParams && normalizeJson(queryParams)),
+        {
+          headers,
+          method,
+          data: payload && normalizeJson(payload)
+        }
+      )
+        .then((response) => {
+          const { data, status, statusText } = response;
 
           if (status < 200 || status >= 300) {
-            throw new HttpError(status, statusText, await response.json());
+            throw new HttpError(status, statusText, data);
           }
 
-          const contentTypeHeader = response.headers
-            .get('Content-Type')
-            ?.split(';');
-
-          const contentType = contentTypeHeader
-            ? contentTypeHeader[0]
-            : 'text/plain';
-
-          switch (contentType) {
-            case 'application/octet-stream':
-              return response.blob();
-            case 'application/json':
-              return response.json().catch(() => ({}));
-            default:
-              return response.text();
-          }
+          return data;
         })
         .catch((error) => {
           const { catchError } = configuration;
 
           throw catchError ? catchError(error) : error;
-        })
+        });
+    }
   );
 }
 
