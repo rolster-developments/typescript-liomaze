@@ -1,4 +1,4 @@
-import { fromPromise, itIsDefined } from '@rolster/commons';
+import { fromPromise, normalizeJson } from '@rolster/commons';
 import axios from 'axios';
 
 export enum Method {
@@ -128,24 +128,6 @@ async function refactorRequest(
   );
 
   return interceptor.build(resultHeaders, headers, payload);
-}
-
-function normalizeJson(payload: LiteralObject): LiteralObject {
-  return Object.entries(payload).reduce(
-    (result: LiteralObject, [key, value]) => {
-      if (itIsDefined(value)) {
-        result[key] =
-          typeof value === 'object'
-            ? Array.isArray(value)
-              ? value.map((value) => normalizeJson(value))
-              : normalizeJson(value)
-            : value;
-      }
-
-      return result;
-    },
-    {}
-  );
 }
 
 function createUrl(baseUrl: string, queryParams?: LiteralObject): string {
