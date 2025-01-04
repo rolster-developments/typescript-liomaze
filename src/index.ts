@@ -111,19 +111,23 @@ async function refactorHeaders(
 async function refactorRequest(
   options: RefactorOptions
 ): Promise<RefactorResult> {
-  const { method, url, payload } = options;
-
-  const headers = await refactorHeaders(method, url);
+  const headers = await refactorHeaders(options.method, options.url);
 
   const interceptor = new Interceptor();
 
   await Promise.all(
     configuration.interceptors.map((resolver) =>
-      fromPromise(resolver({ method, url, interceptor }))
+      fromPromise(
+        resolver({
+          interceptor,
+          method: options.method,
+          url: options.url
+        })
+      )
     )
   );
 
-  return interceptor.build(headers, options.headers, payload);
+  return interceptor.build(headers, options.headers, options.payload);
 }
 
 function createUrl(baseUrl: string, queryParams?: LiteralObject): string {
@@ -147,34 +151,35 @@ function request<T = any>(
   url: string,
   options: HttpOptions
 ): Promise<T> {
-  const { headers, payload, queryParams } = options;
+  return refactorRequest({
+    method,
+    url,
+    headers: options.headers,
+    payload: options.payload
+  }).then(({ headers, payload }) => {
+    return axios<T>(
+      createUrl(url, options.queryParams && normalizeJson(options.queryParams)),
+      {
+        headers,
+        method,
+        data: payload && normalizeJson(payload)
+      }
+    )
+      .then((response) => {
+        const { data, status, statusText } = response;
 
-  return refactorRequest({ method, url, headers, payload }).then(
-    ({ headers, payload }) => {
-      return axios<T>(
-        createUrl(url, queryParams && normalizeJson(queryParams)),
-        {
-          headers,
-          method,
-          data: payload && normalizeJson(payload)
+        if (status < 200 || status >= 300) {
+          throw new HttpError(status, statusText, data);
         }
-      )
-        .then((response) => {
-          const { data, status, statusText } = response;
 
-          if (status < 200 || status >= 300) {
-            throw new HttpError(status, statusText, data);
-          }
-
-          return data;
-        })
-        .catch((error) => {
-          const { catchError } = configuration;
-
-          throw catchError ? catchError(error) : error;
-        });
-    }
-  );
+        return data;
+      })
+      .catch((error) => {
+        throw configuration.catchError
+          ? configuration.catchError(error)
+          : error;
+      });
+  });
 }
 
 export class HttpError<T> extends Error {
