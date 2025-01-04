@@ -92,21 +92,18 @@ async function refactorHeaders(
   method: Method,
   url: string
 ): Promise<LiteralObject> {
-  const { headers: configHeaders } = configuration;
-
   const headers: LiteralObject = {};
 
-  if (configHeaders) {
-    await fromPromise(
-      configHeaders({
+  configuration.headers &&
+    (await fromPromise(
+      configuration.headers({
         method,
         url,
         header: (key: string, value: any) => {
           headers[key] = value;
         }
       })
-    );
-  }
+    ));
 
   return headers;
 }
@@ -114,20 +111,19 @@ async function refactorHeaders(
 async function refactorRequest(
   options: RefactorOptions
 ): Promise<RefactorResult> {
-  const { method, url, payload, headers } = options;
-  const { interceptors } = configuration;
+  const { method, url, payload } = options;
 
-  const resultHeaders = await refactorHeaders(method, url);
+  const headers = await refactorHeaders(method, url);
 
   const interceptor = new Interceptor();
 
   await Promise.all(
-    interceptors.map((resolver) =>
+    configuration.interceptors.map((resolver) =>
       fromPromise(resolver({ method, url, interceptor }))
     )
   );
 
-  return interceptor.build(resultHeaders, headers, payload);
+  return interceptor.build(headers, options.headers, payload);
 }
 
 function createUrl(baseUrl: string, queryParams?: LiteralObject): string {
@@ -192,13 +188,11 @@ export class HttpError<T> extends Error {
 }
 
 export function config(config: Partial<Configuration>): void {
-  const { catchError, headers, interceptors } = config;
+  configuration.catchError = config.catchError;
+  configuration.headers = config.headers;
 
-  configuration.catchError = catchError;
-  configuration.headers = headers;
-
-  if (interceptors) {
-    configuration.interceptors = interceptors;
+  if (config.interceptors) {
+    configuration.interceptors = config.interceptors;
   }
 }
 
