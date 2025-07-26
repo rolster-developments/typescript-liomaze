@@ -16,6 +16,11 @@ interface HttpOptions {
   queryParams?: LiteralObject;
 }
 
+interface FileOptions {
+  headers?: LiteralObject;
+  payload?: FormData;
+}
+
 type Result = void | Promise<void>;
 type Header = (key: string, value: any) => Result;
 
@@ -146,40 +151,38 @@ function createUrl(baseUrl: string, queryParams?: LiteralObject): string {
   return `${baseUrl}?${paramsUrl}`;
 }
 
-function request<T = any>(
+async function request<T = any>(
   method: Method,
   url: string,
   options: HttpOptions
 ): Promise<T> {
-  return refactorRequest({
-    method,
-    url,
-    headers: options.headers,
-    payload: options.payload
-  }).then(({ headers, payload }) => {
-    return axios<T>(
+  try {
+    const { headers, payload } = await refactorRequest({
+      method,
+      url,
+      headers: options.headers,
+      payload: options.payload
+    });
+
+    const response = await axios<T>(
       createUrl(url, options.queryParams && normalizeJson(options.queryParams)),
       {
         headers,
         method,
         data: payload && normalizeJson(payload)
       }
-    )
-      .then((response) => {
-        const { data, status, statusText } = response;
+    );
 
-        if (status < 200 || status >= 300) {
-          throw new HttpError(status, statusText, data);
-        }
+    const { data, status, statusText } = response;
 
-        return data;
-      })
-      .catch((error) => {
-        throw configuration.catchError
-          ? configuration.catchError(error)
-          : error;
-      });
-  });
+    if (status < 200 || status >= 300) {
+      throw new HttpError(status, statusText, data);
+    }
+
+    return data;
+  } catch (err: any) {
+    throw configuration.catchError ? configuration.catchError(err) : err;
+  }
 }
 
 export class HttpError<T> extends Error {
@@ -247,4 +250,33 @@ export function options<T = any>(
   options: HttpOptions = {}
 ): Promise<T> {
   return request(Method.Options, url, options);
+}
+
+export async function file<T = any>(
+  url: string,
+  options: FileOptions
+): Promise<T> {
+  try {
+    const { headers } = await refactorRequest({
+      method: Method.Post,
+      url,
+      headers: options.headers
+    });
+
+    const response = await axios<T>(createUrl(url), {
+      headers,
+      method: Method.Post,
+      data: options.payload
+    });
+
+    const { data, status, statusText } = response;
+
+    if (status < 200 || status >= 300) {
+      throw new HttpError(status, statusText, data);
+    }
+
+    return data;
+  } catch (err: any) {
+    throw configuration.catchError ? configuration.catchError(err) : err;
+  }
 }
