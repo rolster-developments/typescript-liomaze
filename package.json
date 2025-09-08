@@ -1,6 +1,6 @@
 {
   "name": "@rolster/liomaze",
-  "version": "2.3.4",
+  "version": "2.4.0",
   "description": "Package that allows you to make http requests from the browser.",
   "module": "dist/esm/index.js",
   "main": "dist/cjs/index.js",
@@ -27,22 +27,19 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@rolster/commons": "^2.3.20",
+    "@rolster/commons": "^2.4.0",
     "axios": "^1.8.2"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.4",
     "@rollup/plugin-node-resolve": "^15.2.1",
     "@rollup/plugin-typescript": "^11.1.3",
-    "@rolster/rollup": "^1.0.6",
+    "@rolster/rollup": "^1.0.8",
     "@rolster/types": "^1.1.0",
     "@types/axios": "^0.14.4",
-    "@types/jest": "^29.5.1",
-    "jest": "^29.5.0",
     "prettier": "^3.0.3",
     "rimraf": "^3.0.2",
     "rollup": "^2.32.0",
-    "ts-jest": "^29.1.0",
     "tslib": "^2.4.0",
     "typescript": "^5.7.2"
   },
