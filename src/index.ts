@@ -277,6 +277,6 @@ export async function file<T = any>(
 
     return data;
   } catch (err: any) {
-    throw configuration.catchError ? configuration.catchError(err) : err;
+    throw configuration.catchError?.(err) || err;
   }
 }
