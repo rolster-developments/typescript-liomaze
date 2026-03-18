@@ -1,6 +1,6 @@
 {
   "name": "@rolster/liomaze",
-  "version": "3.1.0",
+  "version": "4.0.0",
   "type": "module",
   "description": "Package that allows you to make http requests from the browser.",
   "license": "MIT",
@@ -12,7 +12,7 @@
     }
   ],
   "types": "./dist/esm/index.d.ts",
-  "main": "./dist/esm/index.js",
+  "main": "./dist/cjs/index.js",
   "module": "./dist/esm/index.js",
   "exports": {
     ".": {
@@ -30,16 +30,16 @@
   "scripts": {
     "prettier": "prettier --write \"src/**/*.{ts}\"",
     "clean": "rimraf ./dist",
-    "build": "npm run clean && tsc -p tsconfig.app.json && rollup -c rollup.config.js",
+    "build": "npm run clean && tsc -p tsconfig.app.json && rollup -c rollup.config.mjs",
     "test": "vitest run",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@rolster/commons": "^3.2.1",
+    "@rolster/commons": "^4.0.0",
     "axios": "^1.13.6"
   },
   "devDependencies": {
-    "@rolster/rollup": "^1.0.10",
+    "@rolster/rollup": "^1.1.0",
     "@rolster/types": "^1.1.0",
     "@types/axios": "^0.14.4",
     "@vitest/ui": "^3.2.4",
@@ -65,3 +65,4 @@
     "access": "public"
   }
 }
+
