@@ -1,5 +1,5 @@
-import { fromPromise, normalizeJson } from '@rolster/commons';
-import axios from 'axios';
+import { delayPromise, fromPromise, normalizeJson } from '@rolster/commons';
+import axios, { AxiosRequestConfig } from 'axios';
 
 export enum Method {
   Post = 'POST',
@@ -10,15 +10,24 @@ export enum Method {
   Options = 'OPTIONS'
 }
 
+export interface RetryConfig {
+  attempts: number;
+  delay?: number;
+}
+
 interface HttpOptions {
   headers?: LiteralObject;
   payload?: LiteralObject;
   queryParams?: LiteralObject;
+  withCredentials?: boolean;
+  retry?: RetryConfig | false;
 }
 
 interface FileOptions {
   headers?: LiteralObject;
   payload?: FormData;
+  withCredentials?: boolean;
+  retry?: RetryConfig | false;
 }
 
 type Result = void | Promise<void>;
@@ -43,6 +52,8 @@ interface Configuration {
   interceptors: ResolverInterceptor[];
   catchError?: (error: Error) => Error;
   headers?: ResolverHeader;
+  withCredentials?: boolean;
+  retry?: RetryConfig;
 }
 
 interface RefactorOptions {
@@ -55,6 +66,17 @@ interface RefactorOptions {
 interface RefactorResult {
   headers: LiteralObject<any>;
   payload?: LiteralObject;
+}
+
+interface DispatchOptions {
+  method: Method;
+  url: string;
+  headers?: LiteralObject;
+  payload?: LiteralObject;
+  data?: any;
+  queryParams?: LiteralObject;
+  withCredentials?: boolean;
+  retry?: RetryConfig | false;
 }
 
 class Interceptor {
@@ -135,53 +157,77 @@ async function refactorRequest(
   return interceptor.build(headers, options.headers, options.payload);
 }
 
-function createUrl(baseUrl: string, queryParams?: LiteralObject): string {
-  if (!queryParams) {
-    return baseUrl;
+function resolveRetry(local?: RetryConfig | false): Undefined<RetryConfig> {
+  if (local === false) {
+    return undefined;
   }
 
-  const paramsUrl = Object.entries(queryParams)
-    .reduce<string[]>((params, [key, value]) => {
-      params.push(`${key}=${value}`);
-
-      return params;
-    }, [])
-    .join('&');
-
-  return `${baseUrl}?${paramsUrl}`;
+  return local ?? configuration.retry;
 }
 
-async function request<T = any>(
-  method: Method,
-  url: string,
-  options: HttpOptions
+async function sendWithRetry<T>(
+  send: () => Promise<T>,
+  retry?: RetryConfig
 ): Promise<T> {
+  let attempt = 0;
+
+  for (;;) {
+    try {
+      return await send();
+    } catch (err) {
+      if (retry && attempt < retry.attempts) {
+        attempt++;
+
+        if (retry.delay) {
+          await delayPromise(() => undefined, retry.delay);
+        }
+
+        continue;
+      }
+
+      throw err;
+    }
+  }
+}
+
+function refactorError(err: any): Error {
+  const error =
+    axios.isAxiosError(err) && err.response
+      ? new HttpError(
+          err.response.status,
+          err.response.statusText,
+          err.response.data
+        )
+      : err;
+
+  return configuration.catchError ? configuration.catchError(error) : error;
+}
+
+async function dispatch<T>(options: DispatchOptions): Promise<T> {
   try {
     const { headers, payload } = await refactorRequest({
-      method,
-      url,
+      method: options.method,
+      url: options.url,
       headers: options.headers,
       payload: options.payload
     });
 
-    const response = await axios<T>(
-      createUrl(url, options.queryParams && normalizeJson(options.queryParams)),
-      {
-        headers,
-        method,
-        data: payload && normalizeJson(payload)
-      }
+    const request: AxiosRequestConfig = {
+      headers,
+      method: options.method,
+      data: options.data ?? (payload && normalizeJson(payload)),
+      params: options.queryParams && normalizeJson(options.queryParams),
+      withCredentials: options.withCredentials ?? configuration.withCredentials
+    };
+
+    const { data } = await sendWithRetry(
+      () => axios<T>(options.url, request),
+      resolveRetry(options.retry)
     );
-
-    const { data, status, statusText } = response;
-
-    if (status < 200 || status >= 300) {
-      throw new HttpError(status, statusText, data);
-    }
 
     return data;
   } catch (err: any) {
-    throw configuration.catchError ? configuration.catchError(err) : err;
+    throw refactorError(err);
   }
 }
 
@@ -196,8 +242,21 @@ export class HttpError<T> extends Error {
 }
 
 export function config(config: Partial<Configuration>): void {
-  configuration.catchError = config.catchError;
-  configuration.headers = config.headers;
+  if ('catchError' in config) {
+    configuration.catchError = config.catchError;
+  }
+
+  if ('headers' in config) {
+    configuration.headers = config.headers;
+  }
+
+  if ('withCredentials' in config) {
+    configuration.withCredentials = config.withCredentials;
+  }
+
+  if ('retry' in config) {
+    configuration.retry = config.retry;
+  }
 
   if (config.interceptors) {
     configuration.interceptors = config.interceptors;
@@ -214,69 +273,51 @@ export function get<T = any>(
   url: string,
   options: GetOptions = {}
 ): Promise<T> {
-  return request(Method.Get, url, options);
+  return dispatch({ method: Method.Get, url, ...options });
 }
 
 export function post<T = any>(
   url: string,
   options: HttpOptions = {}
 ): Promise<T> {
-  return request(Method.Post, url, options);
+  return dispatch({ method: Method.Post, url, ...options });
 }
 
 export function put<T = any>(
   url: string,
   options: HttpOptions = {}
 ): Promise<T> {
-  return request(Method.Put, url, options);
+  return dispatch({ method: Method.Put, url, ...options });
 }
 
 export function destroy<T = any>(
   url: string,
   options: HttpOptions = {}
 ): Promise<T> {
-  return request(Method.Delete, url, options);
+  return dispatch({ method: Method.Delete, url, ...options });
 }
 
 export function patch<T = any>(
   url: string,
   options: HttpOptions = {}
 ): Promise<T> {
-  return request(Method.Patch, url, options);
+  return dispatch({ method: Method.Patch, url, ...options });
 }
 
 export function options<T = any>(
   url: string,
   options: HttpOptions = {}
 ): Promise<T> {
-  return request(Method.Options, url, options);
+  return dispatch({ method: Method.Options, url, ...options });
 }
 
-export async function file<T = any>(
-  url: string,
-  options: FileOptions
-): Promise<T> {
-  try {
-    const { headers } = await refactorRequest({
-      method: Method.Post,
-      url,
-      headers: options.headers
-    });
-
-    const response = await axios<T>(createUrl(url), {
-      headers,
-      method: Method.Post,
-      data: options.payload
-    });
-
-    const { data, status, statusText } = response;
-
-    if (status < 200 || status >= 300) {
-      throw new HttpError(status, statusText, data);
-    }
-
-    return data;
-  } catch (err: any) {
-    throw configuration.catchError?.(err) || err;
-  }
+export function file<T = any>(url: string, options: FileOptions): Promise<T> {
+  return dispatch({
+    method: Method.Post,
+    url,
+    headers: options.headers,
+    data: options.payload,
+    withCredentials: options.withCredentials,
+    retry: options.retry
+  });
 }
