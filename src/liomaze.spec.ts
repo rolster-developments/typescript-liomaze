@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError, config, file, get } from './index';
+import { HttpError, config, file, get } from './liomaze';
 
 vi.mock('@rolster/commons', () => ({
   fromPromise: (value: any) => Promise.resolve(value),
