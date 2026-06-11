@@ -39,7 +39,7 @@
     "axios": "^1.17.0"
   },
   "devDependencies": {
-    "@rolster/rollup": "^2.1.0",
+    "@rolster/rollup": "^2.1.1",
     "@rolster/types": "^1.1.1",
     "@vitest/ui": "^4.1.8",
     "jsdom": "^27.0.0",
