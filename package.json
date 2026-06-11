@@ -1,27 +1,27 @@
 {
   "name": "@rolster/liomaze",
-  "version": "4.2.1",
+  "version": "4.2.2",
   "type": "module",
   "description": "Package that allows you to make http requests from the browser.",
   "license": "MIT",
   "author": "Rolster Technology <rolster.developments@gmail.com>",
   "contributors": [
     {
-      "name": "Daniel Andrés Castillo Pedroza",
+      "name": "Daniel AndrÃ©s Castillo Pedroza",
       "email": "ing.dacastillop@gmail.com"
     }
   ],
   "types": "./dist/esm/index.d.ts",
   "main": "./dist/cjs/index.cjs",
-  "module": "./dist/esm/index.js",
+  "module": "./dist/es/index.mjs",
   "exports": {
     ".": {
       "types": "./dist/esm/index.d.ts",
       "node": {
         "require": "./dist/cjs/index.cjs",
-        "import": "./dist/esm/index.js"
+        "import": "./dist/es/index.mjs"
       },
-      "default": "./dist/esm/index.js"
+      "default": "./dist/es/index.mjs"
     }
   },
   "files": [
@@ -35,18 +35,18 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@rolster/commons": "^4.1.1",
+    "@rolster/commons": "^4.1.2",
     "axios": "^1.17.0"
   },
   "devDependencies": {
-    "@rolster/rollup": "^2.0.0",
-    "@rolster/types": "^1.1.0",
+    "@rolster/rollup": "^2.1.0",
+    "@rolster/types": "^1.1.1",
     "@vitest/ui": "^4.1.8",
     "jsdom": "^27.0.0",
     "prettier": "^3.8.1",
     "rimraf": "^6.1.3",
     "tslib": "^2.4.0",
-    "typescript": "^5.7.2",
+    "typescript": "^6.0.3",
     "vitest": "^4.1.8"
   },
   "repository": {
@@ -64,7 +64,7 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=14.13"
+    "node": ">=22"
   }
 }
 
