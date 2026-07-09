@@ -13,6 +13,7 @@ interface HttpOptions {
 
 interface FileOptions {
   headers?: LiteralObject;
+  method?: HttpMethod;
   payload?: FormData;
   retry?: HttpRetry | false;
   withCredentials?: boolean;
@@ -310,7 +311,7 @@ export function options<T = any>(
 
 export function file<T = any>(url: string, options: FileOptions): Promise<T> {
   return dispatch({
-    method: HttpMethod.Post,
+    method: options.method ?? HttpMethod.Post,
     url,
     headers: options.headers,
     payload: options.payload,
