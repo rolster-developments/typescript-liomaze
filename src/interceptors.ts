@@ -1,4 +1,4 @@
-import { AxiosResponse } from 'axios';
+import { AxiosResponse, ResponseType } from 'axios';
 import { mergePayload } from './helpers';
 import { HttpMethod, HttpPayload } from './types';
 
@@ -49,6 +49,7 @@ export interface InterceptorRequest {
   headers: Record<string, string>;
   data?: HttpPayload;
   params?: Record<string, any>;
+  responseType?: ResponseType;
   withCredentials?: boolean;
 }
 

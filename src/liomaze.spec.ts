@@ -4,6 +4,7 @@ import {
   HttpError,
   config,
   destroy,
+  download,
   file,
   get,
   interceptor,
@@ -194,6 +195,29 @@ describe('liomaze', () => {
 
       expect(result).toEqual({ ok: true });
       expect(axiosMock.mock.calls[0][0].method).toBe(expectedMethod);
+    });
+  });
+
+  describe('download', () => {
+    it('should request a blob with GET method', async () => {
+      const blob = new Blob(['content'], { type: 'text/plain' });
+      axiosMock.mockResolvedValue(axiosResponse(blob));
+
+      const result = await download('https://api.test/file.pdf');
+
+      expect(result).toBeInstanceOf(Blob);
+      expect(axiosMock.mock.calls[0][0].method).toBe('GET');
+      expect(axiosMock.mock.calls[0][0].responseType).toBe('blob');
+    });
+
+    it('should pass query params to the request', async () => {
+      axiosMock.mockResolvedValue(axiosResponse(new Blob()));
+
+      await download('https://api.test/file', {
+        queryParams: { id: '123' }
+      });
+
+      expect(axiosMock.mock.calls[0][0].params).toEqual({ id: '123' });
     });
   });
 

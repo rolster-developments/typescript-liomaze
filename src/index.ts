@@ -2,6 +2,7 @@ export {
   HttpError,
   config,
   destroy,
+  download,
   file,
   get,
   interceptor,

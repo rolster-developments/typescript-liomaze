@@ -1,5 +1,5 @@
 import { delayPromise, normalizeJson } from '@rolster/commons';
-import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosRequestConfig, AxiosResponse, ResponseType } from 'axios';
 import { normalizePayload } from './helpers';
 import {
   BuilderInterceptors,
@@ -18,13 +18,8 @@ interface HttpOptions {
   withCredentials?: boolean;
 }
 
-interface FileOptions {
-  headers?: LiteralObject;
-  method?: HttpMethod;
-  payload?: FormData;
-  retry?: HttpRetry | false;
-  withCredentials?: boolean;
-}
+type FileOptions = HttpOptions & { method?: HttpMethod };
+type DownloadOption = HttpOptions & { method?: HttpMethod };
 
 type Result = void | Promise<void>;
 type BuilderHeader = (key: string, value: any) => Result;
@@ -39,6 +34,7 @@ type BuilderHeaders = (options: BuilderHeadersOptions) => Result;
 
 interface LiomazeConfiguration {
   interceptors: LiomazeInterceptor[];
+  responseType: ResponseType;
   catchError?: (error: Error) => Error;
   headers?: BuilderHeaders;
   retry?: HttpRetry;
@@ -51,12 +47,14 @@ interface DispatchOptions {
   headers?: LiteralObject;
   payload?: HttpPayload;
   queryParams?: LiteralObject;
+  responseType?: ResponseType;
   retry?: HttpRetry | false;
   withCredentials?: boolean;
 }
 
 const configuration: LiomazeConfiguration = {
-  interceptors: []
+  interceptors: [],
+  responseType: 'json'
 };
 
 function createContextConfiguration(): LiomazeConfiguration {
@@ -64,6 +62,7 @@ function createContextConfiguration(): LiomazeConfiguration {
     catchError: configuration.catchError,
     headers: configuration.headers,
     interceptors: [...configuration.interceptors],
+    responseType: configuration.responseType,
     retry: configuration.retry,
     withCredentials: configuration.withCredentials
   };
@@ -164,6 +163,7 @@ async function dispatch<T>(options: DispatchOptions): Promise<T> {
     headers: { ...headers, ...options.headers },
     data: options.payload,
     params: options.queryParams && normalizeJson(options.queryParams),
+    responseType: options.responseType || context.responseType,
     withCredentials: options.withCredentials ?? context.withCredentials
   };
 
@@ -174,6 +174,7 @@ async function dispatch<T>(options: DispatchOptions): Promise<T> {
       headers: req.headers,
       data: normalizePayload(req.data),
       params: req.params,
+      responseType: req.responseType,
       withCredentials: req.withCredentials
     };
 
@@ -215,12 +216,16 @@ export function config(
     configuration.headers = config.headers;
   }
 
-  if ('withCredentials' in config) {
-    configuration.withCredentials = config.withCredentials;
+  if (config.responseType) {
+    configuration.responseType = config.responseType;
   }
 
   if ('retry' in config) {
     configuration.retry = config.retry;
+  }
+
+  if ('withCredentials' in config) {
+    configuration.withCredentials = config.withCredentials;
   }
 
   if (config.interceptors) {
@@ -284,6 +289,21 @@ export function file<T = any>(url: string, options: FileOptions): Promise<T> {
     url,
     headers: options.headers,
     payload: options.payload,
+    retry: options.retry,
+    withCredentials: options.withCredentials
+  });
+}
+
+export function download(
+  url: string,
+  options: DownloadOption = {}
+): Promise<Blob> {
+  return dispatch<Blob>({
+    method: options.method || HttpMethod.Get,
+    url,
+    headers: options.headers,
+    queryParams: options.queryParams,
+    responseType: 'blob',
     retry: options.retry,
     withCredentials: options.withCredentials
   });
