@@ -1,6 +1,13 @@
 import { delayPromise, normalizeJson } from '@rolster/commons';
-import axios, { AxiosRequestConfig } from 'axios';
-import { mergePayload, normalizePayload } from './helpers';
+import axios, { AxiosRequestConfig, AxiosResponse } from 'axios';
+import { normalizePayload } from './helpers';
+import {
+  BuilderInterceptors,
+  buildPipeline,
+  InterceptorRequest,
+  LiomazeInterceptor,
+  normalizeInterceptor
+} from './interceptors';
 import { HttpMethod, HttpPayload, HttpRetry } from './types';
 
 interface HttpOptions {
@@ -28,33 +35,14 @@ interface BuilderHeadersOptions {
   url: string;
 }
 
-interface BuilderInterceptorsOptions {
-  interceptor: Interceptor;
-  method: HttpMethod;
-  url: string;
-}
-
 type BuilderHeaders = (options: BuilderHeadersOptions) => Result;
-type BuilderInterceptors = (options: BuilderInterceptorsOptions) => Result;
 
 interface LiomazeConfiguration {
-  interceptors: BuilderInterceptors[];
+  interceptors: LiomazeInterceptor[];
   catchError?: (error: Error) => Error;
   headers?: BuilderHeaders;
   retry?: HttpRetry;
   withCredentials?: boolean;
-}
-
-interface CreatorOptions {
-  method: HttpMethod;
-  url: string;
-  headers?: LiteralObject;
-  payload?: HttpPayload;
-}
-
-interface RequestResult {
-  headers: LiteralObject<any>;
-  payload?: HttpPayload;
 }
 
 interface DispatchOptions {
@@ -65,31 +53,6 @@ interface DispatchOptions {
   queryParams?: LiteralObject;
   retry?: HttpRetry | false;
   withCredentials?: boolean;
-}
-
-class Interceptor {
-  private readonly headers: LiteralObject = {};
-
-  private _payload?: HttpPayload;
-
-  public header(key: string, value: any): void {
-    this.headers[key] = String(value);
-  }
-
-  public payload(payload: HttpPayload): void {
-    this._payload = payload;
-  }
-
-  public build(
-    globals: LiteralObject,
-    headers?: LiteralObject<any>,
-    payload?: HttpPayload
-  ): RequestResult {
-    return {
-      headers: { ...globals, ...this.headers, ...headers },
-      payload: mergePayload(this._payload, payload)
-    };
-  }
 }
 
 const configuration: LiomazeConfiguration = {
@@ -110,41 +73,20 @@ async function createHeaders(
   context: LiomazeConfiguration,
   method: HttpMethod,
   url: string
-): Promise<LiteralObject> {
-  const headers: LiteralObject = {};
+): Promise<Record<string, string>> {
+  const headers: Record<string, string> = {};
 
   if (context.headers) {
     await context.headers({
       method,
       url,
       header: (key: string, value: any) => {
-        headers[key] = value;
+        headers[key] = String(value);
       }
     });
   }
 
   return headers;
-}
-
-async function createRequest(
-  context: LiomazeConfiguration,
-  options: CreatorOptions
-): Promise<RequestResult> {
-  const headers = await createHeaders(context, options.method, options.url);
-
-  const interceptor = new Interceptor();
-
-  await Promise.all(
-    context.interceptors.map((resolver) =>
-      resolver({
-        interceptor,
-        method: options.method,
-        url: options.url
-      })
-    )
-  );
-
-  return interceptor.build(headers, options.headers, options.payload);
 }
 
 function resolveRetry(
@@ -214,30 +156,37 @@ function refactorError(context: LiomazeConfiguration, err: any): Error {
 async function dispatch<T>(options: DispatchOptions): Promise<T> {
   const context = createContextConfiguration();
 
-  const { headers, payload } = await createRequest(context, {
+  const headers = await createHeaders(context, options.method, options.url);
+
+  const initialRequest: InterceptorRequest = {
     method: options.method,
     url: options.url,
-    headers: options.headers,
-    payload: options.payload
-  });
-
-  const withCredentials = options.withCredentials ?? context.withCredentials;
-
-  const request: AxiosRequestConfig = {
-    headers,
-    method: options.method,
-    data: normalizePayload(payload),
+    headers: { ...headers, ...options.headers },
+    data: options.payload,
     params: options.queryParams && normalizeJson(options.queryParams),
-    withCredentials
+    withCredentials: options.withCredentials ?? context.withCredentials
   };
 
+  const pipeline = buildPipeline(context.interceptors, (req) => {
+    const axiosConfig: AxiosRequestConfig = {
+      method: req.method,
+      url: req.url,
+      headers: req.headers,
+      data: normalizePayload(req.data),
+      params: req.params,
+      withCredentials: req.withCredentials
+    };
+
+    return axios(axiosConfig);
+  });
+
   try {
-    const { data } = await sendWithRetry(
-      () => axios<T>(options.url, request),
+    const response = await sendWithRetry<AxiosResponse>(
+      () => pipeline(initialRequest),
       resolveRetry(context, options.retry)
     );
 
-    return data;
+    return response.data;
   } catch (err: any) {
     throw refactorError(context, err);
   }
@@ -253,7 +202,11 @@ export class HttpError<T> extends Error {
   }
 }
 
-export function config(config: Partial<LiomazeConfiguration>): void {
+export function config(
+  config: Partial<LiomazeConfiguration> & {
+    interceptors?: (BuilderInterceptors | LiomazeInterceptor)[];
+  }
+): void {
   if ('catchError' in config) {
     configuration.catchError = config.catchError;
   }
@@ -271,12 +224,14 @@ export function config(config: Partial<LiomazeConfiguration>): void {
   }
 
   if (config.interceptors) {
-    configuration.interceptors = config.interceptors;
+    configuration.interceptors = config.interceptors.map(normalizeInterceptor);
   }
 }
 
-export function interceptor(resolver: BuilderInterceptors): void {
-  configuration.interceptors.push(resolver);
+export function interceptor(
+  resolver: BuilderInterceptors | LiomazeInterceptor
+): void {
+  configuration.interceptors.push(normalizeInterceptor(resolver));
 }
 
 type GetOptions = Omit<HttpOptions, 'payload'>;

@@ -66,7 +66,7 @@ describe('liomaze', () => {
         queryParams: { search: 'a b', empty: undefined }
       });
 
-      const [, request] = axiosMock.mock.calls[0];
+      const [request] = axiosMock.mock.calls[0];
       expect(request.params).toEqual({ search: 'a b' });
     });
   });
@@ -78,7 +78,7 @@ describe('liomaze', () => {
 
       await get('https://api.test/profile');
 
-      expect(axiosMock.mock.calls[0][1].withCredentials).toBe(true);
+      expect(axiosMock.mock.calls[0][0].withCredentials).toBe(true);
     });
 
     it('should override the global value per request', async () => {
@@ -87,7 +87,7 @@ describe('liomaze', () => {
 
       await get('https://api.test/profile', { withCredentials: false });
 
-      expect(axiosMock.mock.calls[0][1].withCredentials).toBe(false);
+      expect(axiosMock.mock.calls[0][0].withCredentials).toBe(false);
     });
   });
 
@@ -162,7 +162,7 @@ describe('liomaze', () => {
 
       await get('https://api.test/profile');
 
-      expect(axiosMock.mock.calls[0][1].withCredentials).toBe(true);
+      expect(axiosMock.mock.calls[0][0].withCredentials).toBe(true);
     });
   });
 
@@ -176,7 +176,7 @@ describe('liomaze', () => {
       const result = await file('https://api.test/upload', { payload: form });
 
       expect(result).toEqual({ uploaded: true });
-      expect(axiosMock.mock.calls[0][1].data).toBe(form);
+      expect(axiosMock.mock.calls[0][0].data).toBe(form);
     });
   });
 });
