@@ -1,6 +1,18 @@
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HttpError, config, file, get } from './liomaze';
+import {
+  HttpError,
+  config,
+  destroy,
+  file,
+  get,
+  interceptor,
+  options,
+  patch,
+  post,
+  put
+} from './liomaze';
+import { LiomazeInterceptor } from './interceptors';
 
 vi.mock('@rolster/commons', () => ({
   fromPromise: (value: any) => Promise.resolve(value),
@@ -31,6 +43,7 @@ function axiosResponse<T>(data: T, status = 200): any {
 function axiosError(status: number, data: any): any {
   return {
     isAxiosError: true,
+    config: {},
     response: { status, statusText: 'ERROR', data }
   };
 }
@@ -41,7 +54,8 @@ describe('liomaze', () => {
     config({
       retry: undefined,
       withCredentials: undefined,
-      catchError: undefined
+      catchError: undefined,
+      interceptors: []
     });
   });
 
@@ -163,6 +177,140 @@ describe('liomaze', () => {
       await get('https://api.test/profile');
 
       expect(axiosMock.mock.calls[0][0].withCredentials).toBe(true);
+    });
+  });
+
+  describe('HTTP methods', () => {
+    it.each([
+      { name: 'post', fn: post, expectedMethod: 'POST' },
+      { name: 'put', fn: put, expectedMethod: 'PUT' },
+      { name: 'patch', fn: patch, expectedMethod: 'PATCH' },
+      { name: 'delete', fn: destroy, expectedMethod: 'DELETE' },
+      { name: 'options', fn: options, expectedMethod: 'OPTIONS' }
+    ])('should send a $name request', async ({ fn, expectedMethod }) => {
+      axiosMock.mockResolvedValue(axiosResponse({ ok: true }));
+
+      const result = await fn('https://api.test/resource');
+
+      expect(result).toEqual({ ok: true });
+      expect(axiosMock.mock.calls[0][0].method).toBe(expectedMethod);
+    });
+  });
+
+  describe('interceptor', () => {
+    beforeEach(() => {
+      axiosMock.mockResolvedValue(axiosResponse({}));
+    });
+
+    it('should modify headers via legacy callback', async () => {
+      interceptor(({ interceptor: ic }) => {
+        ic.header('X-Legacy', 'yes');
+      });
+
+      await get('https://api.test/resource');
+
+      expect(axiosMock.mock.calls[0][0].headers['X-Legacy']).toBe('yes');
+    });
+
+    it('should modify payload via legacy callback', async () => {
+      interceptor(({ interceptor: ic }) => {
+        ic.payload({ from: 'interceptor' });
+      });
+
+      await post('https://api.test/resource', {
+        payload: { from: 'request' }
+      });
+
+      expect(axiosMock.mock.calls[0][0].data).toEqual({
+        from: 'interceptor'
+      });
+    });
+
+    it('should modify headers via Angular-style interceptor', async () => {
+      const customInterceptor: LiomazeInterceptor = {
+        async intercept(request, next) {
+          return next({
+            ...request,
+            headers: { ...request.headers, 'X-Angular': 'yes' }
+          });
+        }
+      };
+
+      interceptor(customInterceptor);
+
+      await get('https://api.test/resource');
+
+      expect(axiosMock.mock.calls[0][0].headers['X-Angular']).toBe('yes');
+    });
+
+    it('should transform the response via Angular-style interceptor', async () => {
+      axiosMock.mockResolvedValue(axiosResponse({ original: true }));
+
+      const transformer: LiomazeInterceptor = {
+        async intercept(request, next) {
+          const response = await next(request);
+
+          return { ...response, data: { transformed: true } };
+        }
+      };
+
+      interceptor(transformer);
+
+      const result = await get('https://api.test/resource');
+
+      expect(result).toEqual({ transformed: true });
+    });
+
+    it('should allow retry via Angular-style interceptor', async () => {
+      axiosMock
+        .mockRejectedValueOnce(axiosError(503, {}))
+        .mockResolvedValueOnce(axiosResponse({ ok: true }));
+
+      const retrier: LiomazeInterceptor = {
+        async intercept(request, next) {
+          try {
+            return await next(request);
+          } catch {
+            return next(request);
+          }
+        }
+      };
+
+      interceptor(retrier);
+
+      const result = await get('https://api.test/flaky');
+
+      expect(result).toEqual({ ok: true });
+      expect(axiosMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('should run multiple interceptors in order', async () => {
+      const order: number[] = [];
+
+      const first: LiomazeInterceptor = {
+        async intercept(request, next) {
+          order.push(1);
+          const response = await next(request);
+          order.push(4);
+          return response;
+        }
+      };
+
+      const second: LiomazeInterceptor = {
+        async intercept(request, next) {
+          order.push(2);
+          const response = await next(request);
+          order.push(3);
+          return response;
+        }
+      };
+
+      interceptor(first);
+      interceptor(second);
+
+      await get('https://api.test/resource');
+
+      expect(order).toEqual([1, 2, 3, 4]);
     });
   });
 
