@@ -144,6 +144,18 @@ function resolveRetry(local?: HttpRetry | false): Undefined<HttpRetry> {
   return local ?? configuration.retry;
 }
 
+function shouldRetryOnError(err: unknown): boolean {
+  if (axios.isAxiosError(err)) {
+    if (!err.response) {
+      return true;
+    }
+
+    return err.response.status >= 500;
+  }
+
+  return false;
+}
+
 async function sendWithRetry<T>(
   send: () => Promise<T>,
   retry?: HttpRetry
@@ -154,11 +166,14 @@ async function sendWithRetry<T>(
     try {
       return await send();
     } catch (err) {
-      if (retry && attempt < retry.attempts) {
+      if (retry && attempt < retry.attempts && shouldRetryOnError(err)) {
         attempt++;
 
         if (retry.delay) {
-          await delayPromise(() => undefined, retry.delay);
+          const backoff = retry.delay * Math.pow(2, attempt - 1);
+          const jitter = Math.random() * backoff * 0.25;
+
+          await delayPromise(() => undefined, backoff + jitter);
         }
 
         continue;
