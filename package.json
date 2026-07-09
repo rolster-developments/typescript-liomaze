@@ -1,6 +1,6 @@
 {
   "name": "@rolster/liomaze",
-  "version": "4.3.0",
+  "version": "4.3.1",
   "type": "module",
   "description": "Package that allows you to make http requests from the browser.",
   "license": "MIT",
@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@rolster/commons": "^4.1.2",
-    "axios": "^1.17.0"
+    "axios": "^1.18.1"
   },
   "devDependencies": {
     "@rolster/rollup": "^2.1.1",

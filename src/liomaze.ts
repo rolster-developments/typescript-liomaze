@@ -2,11 +2,9 @@ import { delayPromise, normalizeJson } from '@rolster/commons';
 import axios, { AxiosRequestConfig, AxiosResponse, ResponseType } from 'axios';
 import { normalizePayload } from './helpers';
 import {
-  BuilderInterceptors,
   buildPipeline,
   InterceptorRequest,
-  LiomazeInterceptor,
-  normalizeInterceptor
+  Interceptor
 } from './interceptors';
 import { HttpMethod, HttpPayload, HttpRetry } from './types';
 
@@ -33,7 +31,7 @@ interface BuilderHeadersOptions {
 type BuilderHeaders = (options: BuilderHeadersOptions) => Result;
 
 interface LiomazeConfiguration {
-  interceptors: LiomazeInterceptor[];
+  interceptors: Interceptor[];
   responseType: ResponseType;
   catchError?: (error: Error) => Error;
   headers?: BuilderHeaders;
@@ -204,9 +202,7 @@ export class HttpError<T> extends Error {
 }
 
 export function config(
-  config: Partial<LiomazeConfiguration> & {
-    interceptors?: (BuilderInterceptors | LiomazeInterceptor)[];
-  }
+  config: Partial<LiomazeConfiguration>
 ): void {
   if ('catchError' in config) {
     configuration.catchError = config.catchError;
@@ -229,14 +225,12 @@ export function config(
   }
 
   if (config.interceptors) {
-    configuration.interceptors = config.interceptors.map(normalizeInterceptor);
+    configuration.interceptors = config.interceptors;
   }
 }
 
-export function interceptor(
-  resolver: BuilderInterceptors | LiomazeInterceptor
-): void {
-  configuration.interceptors.push(normalizeInterceptor(resolver));
+export function interceptor(resolver: Interceptor): void {
+  configuration.interceptors.push(resolver);
 }
 
 type GetOptions = Omit<HttpOptions, 'payload'>;

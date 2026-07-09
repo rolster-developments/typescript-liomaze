@@ -13,7 +13,7 @@ import {
   post,
   put
 } from './liomaze';
-import { LiomazeInterceptor } from './interceptors';
+import { Interceptor } from './interceptors';
 
 vi.mock('@rolster/commons', () => ({
   fromPromise: (value: any) => Promise.resolve(value),
@@ -226,39 +226,12 @@ describe('liomaze', () => {
       axiosMock.mockResolvedValue(axiosResponse({}));
     });
 
-    it('should modify headers via legacy callback', async () => {
-      interceptor(({ interceptor: ic }) => {
-        ic.header('X-Legacy', 'yes');
-      });
-
-      await get('https://api.test/resource');
-
-      expect(axiosMock.mock.calls[0][0].headers['X-Legacy']).toBe('yes');
-    });
-
-    it('should modify payload via legacy callback', async () => {
-      interceptor(({ interceptor: ic }) => {
-        ic.payload({ from: 'interceptor' });
-      });
-
-      await post('https://api.test/resource', {
-        payload: { from: 'request' }
-      });
-
-      expect(axiosMock.mock.calls[0][0].data).toEqual({
-        from: 'interceptor'
-      });
-    });
-
-    it('should modify headers via Angular-style interceptor', async () => {
-      const customInterceptor: LiomazeInterceptor = {
-        async intercept(request, next) {
-          return next({
-            ...request,
-            headers: { ...request.headers, 'X-Angular': 'yes' }
-          });
-        }
-      };
+    it('should modify headers via interceptor', async () => {
+      const customInterceptor: Interceptor = async (request, next) =>
+        next({
+          ...request,
+          headers: { ...request.headers, 'X-Angular': 'yes' }
+        });
 
       interceptor(customInterceptor);
 
@@ -267,15 +240,13 @@ describe('liomaze', () => {
       expect(axiosMock.mock.calls[0][0].headers['X-Angular']).toBe('yes');
     });
 
-    it('should transform the response via Angular-style interceptor', async () => {
+    it('should transform the response via interceptor', async () => {
       axiosMock.mockResolvedValue(axiosResponse({ original: true }));
 
-      const transformer: LiomazeInterceptor = {
-        async intercept(request, next) {
-          const response = await next(request);
+      const transformer: Interceptor = async (request, next) => {
+        const response = await next(request);
 
-          return { ...response, data: { transformed: true } };
-        }
+        return { ...response, data: { transformed: true } };
       };
 
       interceptor(transformer);
@@ -285,18 +256,16 @@ describe('liomaze', () => {
       expect(result).toEqual({ transformed: true });
     });
 
-    it('should allow retry via Angular-style interceptor', async () => {
+    it('should allow retry via interceptor', async () => {
       axiosMock
         .mockRejectedValueOnce(axiosError(503, {}))
         .mockResolvedValueOnce(axiosResponse({ ok: true }));
 
-      const retrier: LiomazeInterceptor = {
-        async intercept(request, next) {
-          try {
-            return await next(request);
-          } catch {
-            return next(request);
-          }
+      const retrier: Interceptor = async (request, next) => {
+        try {
+          return await next(request);
+        } catch {
+          return next(request);
         }
       };
 
@@ -311,22 +280,18 @@ describe('liomaze', () => {
     it('should run multiple interceptors in order', async () => {
       const order: number[] = [];
 
-      const first: LiomazeInterceptor = {
-        async intercept(request, next) {
-          order.push(1);
-          const response = await next(request);
-          order.push(4);
-          return response;
-        }
+      const first: Interceptor = async (request, next) => {
+        order.push(1);
+        const response = await next(request);
+        order.push(4);
+        return response;
       };
 
-      const second: LiomazeInterceptor = {
-        async intercept(request, next) {
-          order.push(2);
-          const response = await next(request);
-          order.push(3);
-          return response;
-        }
+      const second: Interceptor = async (request, next) => {
+        order.push(2);
+        const response = await next(request);
+        order.push(3);
+        return response;
       };
 
       interceptor(first);

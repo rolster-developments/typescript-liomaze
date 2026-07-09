@@ -1,4 +1,9 @@
 export {
+  Interceptor,
+  InterceptorRequest,
+  InterceptorNext
+} from './interceptors';
+export {
   HttpError,
   config,
   destroy,
@@ -11,12 +16,4 @@ export {
   post,
   put
 } from './liomaze';
-export {
-  Interceptor,
-  LiomazeInterceptor,
-  InterceptorRequest,
-  InterceptorNext,
-  BuilderInterceptors,
-  BuilderInterceptorsOptions
-} from './interceptors';
 export * from './types';
