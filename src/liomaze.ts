@@ -1,4 +1,4 @@
-import { delayPromise, fromPromise, normalizeJson } from '@rolster/commons';
+import { delayPromise, normalizeJson } from '@rolster/commons';
 import axios, { AxiosRequestConfig } from 'axios';
 import { mergePayload, normalizePayload } from './helpers';
 import { HttpMethod, HttpPayload, HttpRetry } from './types';
@@ -114,15 +114,13 @@ async function createHeaders(
   const headers: LiteralObject = {};
 
   if (context.headers) {
-    await fromPromise(
-      context.headers({
-        method,
-        url,
-        header: (key: string, value: any) => {
-          headers[key] = value;
-        }
-      })
-    );
+    await context.headers({
+      method,
+      url,
+      header: (key: string, value: any) => {
+        headers[key] = value;
+      }
+    });
   }
 
   return headers;
@@ -138,13 +136,11 @@ async function createRequest(
 
   await Promise.all(
     context.interceptors.map((resolver) =>
-      fromPromise(
-        resolver({
-          interceptor,
-          method: options.method,
-          url: options.url
-        })
-      )
+      resolver({
+        interceptor,
+        method: options.method,
+        url: options.url
+      })
     )
   );
 

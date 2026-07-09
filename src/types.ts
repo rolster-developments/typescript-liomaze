@@ -7,12 +7,7 @@ export enum HttpMethod {
   Options = 'OPTIONS'
 }
 
-export type HttpPayload =
-  | LiteralObject
-  | unknown[]
-  | BodyInit
-  | number
-  | boolean;
+export type HttpPayload = LiteralObject | unknown[] | BodyInit;
 
 export interface HttpRetry {
   attempts: number;
