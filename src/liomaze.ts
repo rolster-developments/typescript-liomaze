@@ -198,25 +198,25 @@ function refactorError(err: any): Error {
 }
 
 async function dispatch<T>(options: DispatchOptions): Promise<T> {
+  const { headers, payload } = await createRequest({
+    method: options.method,
+    url: options.url,
+    headers: options.headers,
+    payload: options.payload
+  });
+
+  const withCredentials =
+    options.withCredentials ?? configuration.withCredentials;
+
+  const request: AxiosRequestConfig = {
+    headers,
+    method: options.method,
+    data: normalizePayload(payload),
+    params: options.queryParams && normalizeJson(options.queryParams),
+    withCredentials
+  };
+
   try {
-    const { headers, payload } = await createRequest({
-      method: options.method,
-      url: options.url,
-      headers: options.headers,
-      payload: options.payload
-    });
-
-    const withCredentials =
-      options.withCredentials ?? configuration.withCredentials;
-
-    const request: AxiosRequestConfig = {
-      headers,
-      method: options.method,
-      data: normalizePayload(payload),
-      params: options.queryParams && normalizeJson(options.queryParams),
-      withCredentials
-    };
-
     const { data } = await sendWithRetry(
       () => axios<T>(options.url, request),
       resolveRetry(options.retry)
