@@ -96,15 +96,26 @@ const configuration: LiomazeConfiguration = {
   interceptors: []
 };
 
+function createContextConfiguration(): LiomazeConfiguration {
+  return {
+    catchError: configuration.catchError,
+    headers: configuration.headers,
+    interceptors: [...configuration.interceptors],
+    retry: configuration.retry,
+    withCredentials: configuration.withCredentials
+  };
+}
+
 async function createHeaders(
+  context: LiomazeConfiguration,
   method: HttpMethod,
   url: string
 ): Promise<LiteralObject> {
   const headers: LiteralObject = {};
 
-  if (configuration.headers) {
+  if (context.headers) {
     await fromPromise(
-      configuration.headers({
+      context.headers({
         method,
         url,
         header: (key: string, value: any) => {
@@ -117,13 +128,16 @@ async function createHeaders(
   return headers;
 }
 
-async function createRequest(options: CreatorOptions): Promise<RequestResult> {
-  const headers = await createHeaders(options.method, options.url);
+async function createRequest(
+  context: LiomazeConfiguration,
+  options: CreatorOptions
+): Promise<RequestResult> {
+  const headers = await createHeaders(context, options.method, options.url);
 
   const interceptor = new Interceptor();
 
   await Promise.all(
-    configuration.interceptors.map((resolver) =>
+    context.interceptors.map((resolver) =>
       fromPromise(
         resolver({
           interceptor,
@@ -137,12 +151,15 @@ async function createRequest(options: CreatorOptions): Promise<RequestResult> {
   return interceptor.build(headers, options.headers, options.payload);
 }
 
-function resolveRetry(local?: HttpRetry | false): Undefined<HttpRetry> {
+function resolveRetry(
+  context: LiomazeConfiguration,
+  local?: HttpRetry | false
+): Undefined<HttpRetry> {
   if (local === false) {
     return undefined;
   }
 
-  return local ?? configuration.retry;
+  return local ?? context.retry;
 }
 
 function shouldRetryOnError(err: unknown): boolean {
@@ -185,7 +202,7 @@ async function sendWithRetry<T>(
   }
 }
 
-function refactorError(err: any): Error {
+function refactorError(context: LiomazeConfiguration, err: any): Error {
   const error =
     axios.isAxiosError(err) && err.response
       ? new HttpError(
@@ -195,19 +212,20 @@ function refactorError(err: any): Error {
         )
       : err;
 
-  return configuration.catchError ? configuration.catchError(error) : error;
+  return context.catchError ? context.catchError(error) : error;
 }
 
 async function dispatch<T>(options: DispatchOptions): Promise<T> {
-  const { headers, payload } = await createRequest({
+  const context = createContextConfiguration();
+
+  const { headers, payload } = await createRequest(context, {
     method: options.method,
     url: options.url,
     headers: options.headers,
     payload: options.payload
   });
 
-  const withCredentials =
-    options.withCredentials ?? configuration.withCredentials;
+  const withCredentials = options.withCredentials ?? context.withCredentials;
 
   const request: AxiosRequestConfig = {
     headers,
@@ -220,12 +238,12 @@ async function dispatch<T>(options: DispatchOptions): Promise<T> {
   try {
     const { data } = await sendWithRetry(
       () => axios<T>(options.url, request),
-      resolveRetry(options.retry)
+      resolveRetry(context, options.retry)
     );
 
     return data;
   } catch (err: any) {
-    throw refactorError(err);
+    throw refactorError(context, err);
   }
 }
 
