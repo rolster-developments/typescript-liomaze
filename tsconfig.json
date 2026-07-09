@@ -3,12 +3,10 @@
     "allowUnreachableCode": false,
     "declaration": true,
     "declarationDir": "dist/esm",
-    "emitDecoratorMetadata": true,
     "esModuleInterop": true,
-    "experimentalDecorators": true,
     "forceConsistentCasingInFileNames": true,
     "importHelpers": true,
-    "lib": ["DOM", "ES2020"],
+    "lib": ["DOM", "ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "noFallthroughCasesInSwitch": true,
@@ -21,9 +19,8 @@
     "skipLibCheck": true,
     "sourceMap": true,
     "strict": true,
-    "target": "ES2020",
-    "types": ["vitest/globals"]
+    "target": "ES2022"
   },
   "files": ["node_modules/@rolster/types/index.d.ts"],
-  "include": ["src/**/*.ts", "src/**/*.spec.ts"]
+  "include": ["src/**/*.ts"]
 }
