@@ -1,15 +1,14 @@
 export {
   Interceptor,
-  InterceptorRequest,
-  InterceptorNext
-} from './interceptors';
+  InterceptorNext,
+  InterceptorRequest} from './interceptors';
 export {
-  HttpError,
   config,
   destroy,
   download,
   file,
   get,
+  HttpError,
   interceptor,
   options,
   patch,

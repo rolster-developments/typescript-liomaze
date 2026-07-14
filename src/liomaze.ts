@@ -1,11 +1,12 @@
 import { delayPromise, normalizeJson } from '@rolster/commons';
+
 import axios, { AxiosRequestConfig, AxiosResponse, ResponseType } from 'axios';
+
 import { normalizePayload } from './helpers';
 import {
   buildPipeline,
-  InterceptorRequest,
-  Interceptor
-} from './interceptors';
+  Interceptor,
+  InterceptorRequest} from './interceptors';
 import { HttpMethod, HttpPayload, HttpRetry } from './types';
 
 interface HttpOptions {

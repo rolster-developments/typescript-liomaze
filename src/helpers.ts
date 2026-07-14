@@ -1,4 +1,5 @@
 import { normalizeJson } from '@rolster/commons';
+
 import { HttpPayload } from './types';
 
 function payloadIsJson(value?: HttpPayload): value is LiteralObject {

@@ -1,10 +1,11 @@
 import { AxiosResponse, ResponseType } from 'axios';
+
 import { HttpMethod, HttpPayload } from './types';
 
 export interface InterceptorRequest {
+  headers: Record<string, string>;
   method: HttpMethod;
   url: string;
-  headers: Record<string, string>;
   data?: HttpPayload;
   params?: Record<string, any>;
   responseType?: ResponseType;

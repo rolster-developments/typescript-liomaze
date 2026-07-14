@@ -1,19 +1,20 @@
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { Interceptor } from './interceptors';
 import {
-  HttpError,
   config,
   destroy,
   download,
   file,
   get,
+  HttpError,
   interceptor,
   options,
   patch,
   post,
   put
 } from './liomaze';
-import { Interceptor } from './interceptors';
 
 vi.mock('@rolster/commons', () => ({
   fromPromise: (value: any) => Promise.resolve(value),
