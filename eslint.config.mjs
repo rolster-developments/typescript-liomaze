@@ -29,7 +29,7 @@ export default tseslint.config(
       'simple-import-sort/imports': [
         'warn',
         {
-          groups: [['^@', '^\\w'], ['^\\.'], ['^\\u0000']]
+          groups: [['^@', '^\\w', '^\\.'], ['^\\u0000']]
         }
       ],
       'simple-import-sort/exports': 'error',

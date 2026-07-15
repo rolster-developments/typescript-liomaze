@@ -1,5 +1,4 @@
 import { AxiosResponse, ResponseType } from 'axios';
-
 import { HttpMethod, HttpPayload } from './types';
 
 export interface InterceptorRequest {
