@@ -1,5 +1,4 @@
 import { delayPromise, normalizeJson } from '@rolster/commons';
-
 import axios, { AxiosRequestConfig, AxiosResponse, ResponseType } from 'axios';
 
 import { normalizePayload } from './helpers';
