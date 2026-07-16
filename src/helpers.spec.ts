@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { mergePayload } from './helpers';
+import { mergePayload, normalizePayload } from './helpers';
 
 describe('mergePayload', () => {
   it('should merge two JSON objects, with interceptor overriding request', () => {
@@ -43,5 +43,29 @@ describe('mergePayload', () => {
     const result = mergePayload('interceptor', 'request');
 
     expect(result).toBe('interceptor');
+  });
+});
+
+describe('normalizePayload', () => {
+  it('should normalize JSON payload removing undefined values', () => {
+    const result = normalizePayload({ a: 1, b: undefined, c: null });
+
+    expect(result).toEqual({ a: 1 });
+  });
+
+  it('should return non-JSON payload as-is', () => {
+    const form = new FormData();
+
+    expect(normalizePayload(form)).toBe(form);
+  });
+
+  it('should return undefined for undefined payload', () => {
+    expect(normalizePayload(undefined)).toBeUndefined();
+  });
+
+  it('should return array payload as-is', () => {
+    const arr = [1, 2, 3];
+
+    expect(normalizePayload(arr)).toBe(arr);
   });
 });
