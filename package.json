@@ -28,7 +28,7 @@
     "dist/"
   ],
   "scripts": {
-    "prettier": "prettier --write \"src/**/*.{ts}\"",
+    "prettier": "prettier --write \"src/**/*.ts\"",
     "clean": "rimraf ./dist",
     "build": "npm run clean && tsc -p tsconfig.app.json && rollup -c rollup.config.mjs",
     "test": "vitest run",
