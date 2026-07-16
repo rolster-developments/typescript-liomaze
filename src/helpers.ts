@@ -18,6 +18,8 @@ export function mergePayload(
     : (interceptorPayload ?? requestPayload);
 }
 
-export function normalizePayload(payload?: HttpPayload): Undefined<HttpPayload> {
+export function normalizePayload(
+  payload?: HttpPayload
+): Undefined<HttpPayload> {
   return payloadIsJson(payload) ? normalizeJson(payload) : payload;
 }

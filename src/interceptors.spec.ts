@@ -45,7 +45,7 @@ describe('buildPipeline', () => {
       return res;
     };
 
-    const handler = vi.fn(async () => {
+    const handler: any = vi.fn(async () => {
       order.push(5);
       return 'done';
     });

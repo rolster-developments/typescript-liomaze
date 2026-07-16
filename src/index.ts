@@ -1,7 +1,8 @@
 export {
   Interceptor,
   InterceptorNext,
-  InterceptorRequest} from './interceptors';
+  InterceptorRequest
+} from './interceptors';
 export {
   config,
   destroy,

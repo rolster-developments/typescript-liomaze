@@ -1,10 +1,7 @@
 import { delayPromise, normalizeJson } from '@rolster/commons';
 import axios, { AxiosRequestConfig, AxiosResponse, ResponseType } from 'axios';
 import { normalizePayload } from './helpers';
-import {
-  buildPipeline,
-  Interceptor,
-  InterceptorRequest} from './interceptors';
+import { buildPipeline, Interceptor, InterceptorRequest } from './interceptors';
 import { HttpMethod, HttpPayload, HttpRetry } from './types';
 
 interface HttpOptions {
@@ -200,9 +197,7 @@ export class HttpError<T> extends Error {
   }
 }
 
-export function config(
-  config: Partial<LiomazeConfiguration>
-): void {
+export function config(config: Partial<LiomazeConfiguration>): void {
   if ('catchError' in config) {
     configuration.catchError = config.catchError;
   }
@@ -295,6 +290,7 @@ export function download(
     method: options.method || HttpMethod.Get,
     url,
     headers: options.headers,
+    payload: options.payload,
     queryParams: options.queryParams,
     responseType: 'blob',
     retry: options.retry,
