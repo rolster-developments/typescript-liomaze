@@ -47,15 +47,15 @@ await patch('https://api.rolster.com/users/1', { payload: { name: 'A.' } });
 await destroy('https://api.rolster.com/users/1'); // DELETE
 ```
 
-| Function     | Verb    | Options type                       |
-| ------------ | ------- | ---------------------------------- |
-| `get`        | GET     | no `payload`                       |
-| `post`       | POST    | full options (with `payload`)      |
-| `put`        | PUT     | full options                       |
-| `patch`      | PATCH   | full options                       |
-| `destroy`    | DELETE  | full options                       |
-| `options`    | OPTIONS | full options                       |
-| `file`       | POST    | `payload` is a `FormData`          |
+| Function  | Verb    | Options type                  |
+| --------- | ------- | ----------------------------- |
+| `get`     | GET     | no `payload`                  |
+| `post`    | POST    | full options (with `payload`) |
+| `put`     | PUT     | full options                  |
+| `patch`   | PATCH   | full options                  |
+| `destroy` | DELETE  | full options                  |
+| `options` | OPTIONS | full options                  |
+| `file`    | POST    | `payload` is a `FormData`     |
 
 > URLs are passed in full — Liomaze does not hold a base URL. The exported
 > `delete` verb is named **`destroy`** (`delete` is a reserved word).
