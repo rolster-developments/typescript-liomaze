@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { mergePayload, normalizePayload } from './helpers';
+import { delay, mergePayload, normalizePayload } from './helpers';
 
 describe('mergePayload', () => {
   it('should merge two JSON objects, with interceptor overriding request', () => {
@@ -67,5 +67,39 @@ describe('normalizePayload', () => {
     const arr = [1, 2, 3];
 
     expect(normalizePayload(arr)).toBe(arr);
+  });
+});
+
+describe('delay', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('should resolve after the given milliseconds', async () => {
+    vi.useFakeTimers();
+
+    const pending = delay(1000);
+    await vi.advanceTimersByTimeAsync(1000);
+
+    await expect(pending).resolves.toBeUndefined();
+  });
+
+  it('should reject with the signal reason when aborted while waiting', async () => {
+    vi.useFakeTimers();
+    const controller = new AbortController();
+    const reason = new Error('stop');
+
+    const pending = delay(60_000, controller.signal);
+    controller.abort(reason);
+
+    await expect(pending).rejects.toBe(reason);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('should reject immediately when the signal is already aborted', async () => {
+    const controller = new AbortController();
+    controller.abort();
+
+    await expect(delay(1000, controller.signal)).rejects.toBeDefined();
   });
 });

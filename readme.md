@@ -47,24 +47,26 @@ await patch('https://api.rolster.com/users/1', { payload: { name: 'A.' } });
 await destroy('https://api.rolster.com/users/1'); // DELETE
 ```
 
-| Function   | Verb                          | Options type                                     |
-| ---------- | ----------------------------- | ------------------------------------------------ |
-| `get`      | GET                           | no `payload`                                     |
-| `post`     | POST                          | full options (with `payload`)                    |
-| `put`      | PUT                           | full options                                     |
-| `patch`    | PATCH                         | full options                                     |
-| `destroy`  | DELETE                        | full options                                     |
-| `options`  | OPTIONS                       | full options                                     |
-| `file`     | POST (override with `method`) | `headers`, `payload`, `retry`, `withCredentials` |
-| `download` | GET (override with `method`)  | full options, resolves to a `Blob`               |
+| Function   | Verb                          | Options type                       |
+| ---------- | ----------------------------- | ---------------------------------- |
+| `get`      | GET                           | no `payload`                       |
+| `post`     | POST                          | full options (with `payload`)      |
+| `put`      | PUT                           | full options                       |
+| `patch`    | PATCH                         | full options                       |
+| `destroy`  | DELETE                        | full options                       |
+| `options`  | OPTIONS                       | full options                       |
+| `file`     | POST (override with `method`) | no `queryParams`                   |
+| `download` | GET (override with `method`)  | full options, resolves to a `Blob` |
 
 > URLs are passed in full — Liomaze does not hold a base URL. The exported
 > `delete` verb is named **`destroy`** (`delete` is a reserved word).
 
 **Request options:** `headers`, `payload` (an `HttpPayload`: plain object,
 array or any `BodyInit` such as `FormData`), `queryParams`, `retry` (an
-`HttpRetry` or `false`), `withCredentials` (`get` omits `payload`). The verbs
-are members of the `HttpMethod` enum (`HttpMethod.Get`, `HttpMethod.Post`, ...).
+`HttpRetry` or `false`), `signal` (an `AbortSignal`, see
+[Cancellation](#cancellation)) and `withCredentials` (`get` omits `payload`).
+The verbs are members of the `HttpMethod` enum (`HttpMethod.Get`,
+`HttpMethod.Post`, ...).
 
 ### File upload
 
@@ -153,7 +155,7 @@ inspect or transform the axios response afterwards.
 
 `InterceptorRequest` exposes `method` (`HttpMethod`), `url`, `headers`
 (`Record<string, string>`) and the optional `data` (the `payload`), `params`
-(the `queryParams`), `responseType` and `withCredentials`.
+(the `queryParams`), `responseType`, `signal` and `withCredentials`.
 
 Register them via `config({ interceptors: [...] })` (replaces the whole list)
 or append one with `interceptor`. They run in registration order, on every
@@ -208,6 +210,50 @@ Enabled globally with `config`, and overridable per request:
 await get('/public', { withCredentials: false });
 ```
 
+## Cancellation
+
+Every request accepts a `signal` (a standard `AbortSignal`). Abort it to cancel
+the request in flight: the underlying axios call is aborted, pending retries
+are skipped (including a retry that is still waiting for its `delay`) and the
+promise rejects with an `HttpCancelError`. If the signal is already aborted,
+the request is never sent.
+
+```ts
+import { get, HttpCancelError } from '@rolster/liomaze';
+
+const controller = new AbortController();
+
+get('https://api.rolster.com/reports', { signal: controller.signal })
+  .then((reports) => render(reports))
+  .catch((error) => {
+    if (error instanceof HttpCancelError) {
+      return; // canceled on purpose, nothing to report
+    }
+
+    throw error;
+  });
+
+// Later, for example when the user navigates away
+controller.abort();
+```
+
+`HttpCancelError` exposes `reason`, the value given to `abort(reason)` (by
+default a `DOMException` named `AbortError`). Because it is a plain
+`AbortSignal`, you can combine it with the platform helpers:
+
+```ts
+// Give up after 5 seconds
+await get('/slow', { signal: AbortSignal.timeout(5000) });
+
+// Cancel when either the user cancels or the timeout fires
+await get('/slow', {
+  signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)])
+});
+```
+
+Cancellations go through `config({ catchError })` like any other error, so
+check for `HttpCancelError` there if you report errors globally.
+
 ## Error handling
 
 Failed HTTP responses are thrown as an `HttpError`, which exposes the status
@@ -239,6 +285,7 @@ You can transform every error globally with `config({ catchError })`.
 | `InterceptorNext`    | `(request: InterceptorRequest) => Promise<AxiosResponse>`.                        |
 | `InterceptorRequest` | The request handed to interceptors (see [Interceptors](#interceptors)).           |
 | `HttpError<T>`       | Error class with `statusCode`, `message` and the server `response`.               |
+| `HttpCancelError`    | Error thrown when the request is canceled through its `signal`; exposes `reason`. |
 
 ## Contributing
 

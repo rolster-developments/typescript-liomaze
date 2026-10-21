@@ -8,6 +8,7 @@ export interface InterceptorRequest {
   data?: HttpPayload;
   params?: Record<string, any>;
   responseType?: ResponseType;
+  signal?: AbortSignal;
   withCredentials?: boolean;
 }
 

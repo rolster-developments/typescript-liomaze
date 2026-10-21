@@ -8,6 +8,7 @@ import {
   download,
   file,
   get,
+  HttpCancelError,
   HttpError,
   interceptor,
   options,
@@ -32,6 +33,7 @@ vi.mock('@rolster/commons', () => ({
 vi.mock('axios', () => {
   const fn: any = vi.fn();
   fn.isAxiosError = (err: any) => Boolean(err?.isAxiosError);
+  fn.isCancel = (err: any) => err?.name === 'CanceledError';
 
   return { default: fn };
 });
@@ -48,6 +50,10 @@ function axiosError(status: number, data: any): any {
     config: {},
     response: { status, statusText: 'ERROR', data }
   };
+}
+
+function axiosCancel(): any {
+  return { isAxiosError: true, name: 'CanceledError', config: {} };
 }
 
 describe('liomaze', () => {
@@ -166,6 +172,130 @@ describe('liomaze', () => {
       config({ catchError: () => new Error('custom') });
 
       await expect(get('https://api.test/error')).rejects.toThrow('custom');
+    });
+  });
+
+  describe('cancel', () => {
+    it('should pass the signal to axios', async () => {
+      axiosMock.mockResolvedValue(axiosResponse({}));
+      const controller = new AbortController();
+
+      await get('https://api.test/users', { signal: controller.signal });
+
+      expect(axiosMock.mock.calls[0][0].signal).toBe(controller.signal);
+    });
+
+    it('should expose the signal to interceptors', async () => {
+      axiosMock.mockResolvedValue(axiosResponse({}));
+      const controller = new AbortController();
+      let received: Undefined<AbortSignal>;
+
+      interceptor((request, next) => {
+        received = request.signal;
+
+        return next(request);
+      });
+
+      await get('https://api.test/users', { signal: controller.signal });
+
+      expect(received).toBe(controller.signal);
+    });
+
+    it('should reject without sending when the signal is already aborted', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        get('https://api.test/users', { signal: controller.signal })
+      ).rejects.toBeInstanceOf(HttpCancelError);
+
+      expect(axiosMock).not.toHaveBeenCalled();
+    });
+
+    it('should map an axios cancellation to HttpCancelError', async () => {
+      const controller = new AbortController();
+      const reason = new Error('user left the page');
+
+      axiosMock.mockImplementation(() => {
+        controller.abort(reason);
+
+        return Promise.reject(axiosCancel());
+      });
+
+      try {
+        await get('https://api.test/users', { signal: controller.signal });
+        expect.unreachable();
+      } catch (err) {
+        expect(err).toBeInstanceOf(HttpCancelError);
+        expect((err as HttpCancelError).reason).toBe(reason);
+      }
+    });
+
+    it('should not retry a canceled request', async () => {
+      const controller = new AbortController();
+
+      axiosMock.mockImplementation(() => {
+        controller.abort();
+
+        return Promise.reject(axiosCancel());
+      });
+
+      config({ retry: { attempts: 3 } });
+
+      await expect(
+        get('https://api.test/users', { signal: controller.signal })
+      ).rejects.toBeInstanceOf(HttpCancelError);
+
+      expect(axiosMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should abort while waiting for the retry delay', async () => {
+      const controller = new AbortController();
+
+      axiosMock.mockImplementation(() => {
+        setTimeout(() => controller.abort(), 0);
+
+        return Promise.reject(axiosError(503, {}));
+      });
+
+      config({ retry: { attempts: 3, delay: 60_000 } });
+
+      await expect(
+        get('https://api.test/users', { signal: controller.signal })
+      ).rejects.toBeInstanceOf(HttpCancelError);
+
+      expect(axiosMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('should apply the global catchError transform to cancellations', async () => {
+      const controller = new AbortController();
+      controller.abort();
+
+      config({ catchError: (error) => new Error(`wrapped: ${error.name}`) });
+
+      await expect(
+        get('https://api.test/users', { signal: controller.signal })
+      ).rejects.toThrow('wrapped: HttpCancelError');
+    });
+
+    it.each([
+      {
+        name: 'file',
+        run: (signal: AbortSignal) =>
+          file('https://api.test/upload', { payload: new FormData(), signal })
+      },
+      {
+        name: 'download',
+        run: (signal: AbortSignal) =>
+          download('https://api.test/file', { signal })
+      }
+    ])('should forward the signal from $name', async ({ run }) => {
+      axiosMock.mockResolvedValue(axiosResponse(new Blob()));
+      const controller = new AbortController();
+
+      await run(controller.signal);
+
+      expect(axiosMock.mock.calls[0][0].signal).toBe(controller.signal);
     });
   });
 

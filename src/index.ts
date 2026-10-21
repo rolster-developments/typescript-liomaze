@@ -9,6 +9,7 @@ export {
   download,
   file,
   get,
+  HttpCancelError,
   HttpError,
   interceptor,
   options,

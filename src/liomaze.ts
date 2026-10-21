@@ -1,6 +1,6 @@
-import { delayPromise, normalizeJson } from '@rolster/commons';
+import { normalizeJson } from '@rolster/commons';
 import axios, { AxiosRequestConfig, AxiosResponse, ResponseType } from 'axios';
-import { normalizePayload } from './helpers';
+import { delay, normalizePayload } from './helpers';
 import { buildPipeline, Interceptor, InterceptorRequest } from './interceptors';
 import { HttpMethod, HttpPayload, HttpRetry } from './types';
 
@@ -9,6 +9,7 @@ interface HttpOptions {
   payload?: HttpPayload;
   queryParams?: LiteralObject;
   retry?: HttpRetry | false;
+  signal?: AbortSignal;
   withCredentials?: boolean;
 }
 
@@ -43,6 +44,7 @@ interface DispatchOptions {
   queryParams?: LiteralObject;
   responseType?: ResponseType;
   retry?: HttpRetry | false;
+  signal?: AbortSignal;
   withCredentials?: boolean;
 }
 
@@ -105,9 +107,20 @@ function shouldRetryOnError(err: unknown): boolean {
   return false;
 }
 
+function isCanceled(err: unknown, signal?: AbortSignal): boolean {
+  if (axios.isCancel(err)) {
+    return true;
+  }
+
+  const hasResponse = axios.isAxiosError(err) && Boolean(err.response);
+
+  return Boolean(signal?.aborted) && !hasResponse;
+}
+
 async function sendWithRetry<T>(
   send: () => Promise<T>,
-  retry?: HttpRetry
+  retry?: HttpRetry,
+  signal?: AbortSignal
 ): Promise<T> {
   let attempt = 0;
 
@@ -115,6 +128,10 @@ async function sendWithRetry<T>(
     try {
       return await send();
     } catch (err) {
+      if (isCanceled(err, signal)) {
+        throw err;
+      }
+
       if (retry && attempt < retry.attempts && shouldRetryOnError(err)) {
         attempt++;
 
@@ -122,7 +139,7 @@ async function sendWithRetry<T>(
           const backoff = retry.delay * Math.pow(2, attempt - 1);
           const jitter = Math.random() * backoff * 0.25;
 
-          await delayPromise(() => undefined, backoff + jitter);
+          await delay(backoff + jitter, signal);
         }
 
         continue;
@@ -133,21 +150,34 @@ async function sendWithRetry<T>(
   }
 }
 
-function refactorError(context: LiomazeConfiguration, err: any): Error {
-  const error =
-    axios.isAxiosError(err) && err.response
-      ? new HttpError(
-          err.response.status,
-          err.response.statusText,
-          err.response.data
-        )
-      : err;
+function refactorError(
+  context: LiomazeConfiguration,
+  err: any,
+  signal?: AbortSignal
+): Error {
+  let error: Error;
+
+  if (isCanceled(err, signal)) {
+    error = new HttpCancelError(signal?.reason ?? err);
+  } else if (axios.isAxiosError(err) && err.response) {
+    error = new HttpError(
+      err.response.status,
+      err.response.statusText,
+      err.response.data
+    );
+  } else {
+    error = err;
+  }
 
   return context.catchError ? context.catchError(error) : error;
 }
 
 async function dispatch<T>(options: DispatchOptions): Promise<T> {
   const context = createContextConfiguration();
+
+  if (options.signal?.aborted) {
+    throw refactorError(context, options.signal.reason, options.signal);
+  }
 
   const headers = await createHeaders(context, options.method, options.url);
 
@@ -158,6 +188,7 @@ async function dispatch<T>(options: DispatchOptions): Promise<T> {
     data: options.payload,
     params: options.queryParams && normalizeJson(options.queryParams),
     responseType: options.responseType || context.responseType,
+    signal: options.signal,
     withCredentials: options.withCredentials ?? context.withCredentials
   };
 
@@ -169,6 +200,7 @@ async function dispatch<T>(options: DispatchOptions): Promise<T> {
       data: normalizePayload(req.data),
       params: req.params,
       responseType: req.responseType,
+      signal: req.signal,
       withCredentials: req.withCredentials
     };
 
@@ -178,12 +210,13 @@ async function dispatch<T>(options: DispatchOptions): Promise<T> {
   try {
     const response = await sendWithRetry<AxiosResponse>(
       () => pipeline(initialRequest),
-      resolveRetry(context, options.retry)
+      resolveRetry(context, options.retry),
+      options.signal
     );
 
     return response.data;
   } catch (err: any) {
-    throw refactorError(context, err);
+    throw refactorError(context, err, options.signal);
   }
 }
 
@@ -194,6 +227,14 @@ export class HttpError<T> extends Error {
     public readonly response: T
   ) {
     super(message);
+  }
+}
+
+export class HttpCancelError extends Error {
+  constructor(public readonly reason?: unknown) {
+    super('Request was canceled');
+
+    this.name = 'HttpCancelError';
   }
 }
 
@@ -278,6 +319,7 @@ export function file<T = any>(url: string, options: FileOptions): Promise<T> {
     headers: options.headers,
     payload: options.payload,
     retry: options.retry,
+    signal: options.signal,
     withCredentials: options.withCredentials
   });
 }
@@ -294,6 +336,7 @@ export function download(
     queryParams: options.queryParams,
     responseType: 'blob',
     retry: options.retry,
+    signal: options.signal,
     withCredentials: options.withCredentials
   });
 }
