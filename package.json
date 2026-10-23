@@ -44,7 +44,7 @@
     "@eslint/js": "^10.0.1",
     "@rolster/rollup": "^2.2.0",
     "@rolster/types": "^1.1.1",
-    "@vitest/ui": "^5.0.0",
+    "@vitest/ui": "^5.0.5",
     "eslint": "^10.7.0",
     "eslint-plugin-perfectionist": "^5.10.0",
     "eslint-plugin-simple-import-sort": "^13.0.0",
@@ -54,7 +54,7 @@
     "tslib": "^2.4.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.64.0",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.5"
   },
   "repository": {
     "type": "git",
@@ -71,6 +71,6 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=24"
   }
 }
