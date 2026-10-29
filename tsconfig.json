@@ -5,7 +5,6 @@
     "declarationDir": "dist/esm",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "importHelpers": true,
     "lib": ["DOM", "ES2022"],
     "module": "ESNext",
     "moduleResolution": "bundler",
