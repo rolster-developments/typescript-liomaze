@@ -289,4 +289,4 @@ You can transform every error globally with `config({ catchError })`.
 
 ## Contributing
 
-- Daniel Andrés Castillo Pedroza :rocket:
+:sparkles: Daniel Andrés Castillo Pedroza
