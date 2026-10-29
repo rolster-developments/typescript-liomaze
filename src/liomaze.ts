@@ -16,7 +16,7 @@ interface HttpOptions {
 type FileOptions = HttpOptions & { method?: HttpMethod };
 type DownloadOption = HttpOptions & { method?: HttpMethod };
 
-type Result = void | Promise<void>;
+type Result = Awaitable<void>;
 type BuilderHeader = (key: string, value: any) => Result;
 
 interface BuilderHeadersOptions {

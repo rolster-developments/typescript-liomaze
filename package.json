@@ -1,6 +1,6 @@
 {
   "name": "@rolster/liomaze",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "type": "module",
   "description": "Package that allows you to make http requests from the browser.",
   "license": "MIT",
@@ -45,7 +45,7 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@rolster/rollup": "^3.0.0",
-    "@rolster/types": "^1.1.1",
+    "@rolster/types": "^1.2.0",
     "eslint": "^10.7.0",
     "eslint-plugin-perfectionist": "^5.10.0",
     "eslint-plugin-simple-import-sort": "^13.0.0",
