@@ -25,7 +25,9 @@
     }
   },
   "files": [
-    "dist/"
+    "dist/",
+    "!dist/esm/**/*.js",
+    "!dist/esm/**/*.js.map"
   ],
   "scripts": {
     "prettier": "prettier --write .",
