@@ -39,7 +39,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@rolster/commons": "^4.2.4",
+    "@rolster/commons": "^4.3.0",
     "axios": "^1.20.0"
   },
   "devDependencies": {
